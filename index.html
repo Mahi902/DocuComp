@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DocuComp Blog</title>
+    
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Product+Sans&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+    
+    <!-- Marked.js via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <style>
+        /* Base Variables */
+        :root {
+            /* Default Light Theme */
+            --md-primary: #0b57d0; 
+            --md-on-primary: #ffffff;
+            --md-primary-hover: #0842a0;
+            --md-surface: #fbfdfe;
+            --md-on-surface: #191c20;
+            --md-surface-container-low: #f3f4f9;
+            --md-surface-container: #eef0f6;
+            --md-outline: #74777f;
+            --md-surface-variant: #e1e2e8;
+            --md-highlight: rgba(26, 115, 232, 0.1);
+            --md-shadow: rgba(0,0,0,0.1);
+
+            /* Typography defaults */
+            --font-family: 'Google Sans', 'Product Sans', 'Roboto', sans-serif;
+            --base-font-size: 16px;
+            --base-line-height: 1.5;
+            --base-letter-spacing: normal;
+            --shape-corner-card: 24px;
+            --shape-corner-btn: 28px;
+        }
+
+        /* Dark Theme */
+        body[data-theme="dark"] {
+            --md-primary: #a8c7fa; 
+            --md-on-primary: #062e6f;
+            --md-primary-hover: #7ca8f9;
+            --md-surface: #111315;
+            --md-on-surface: #e2e2e6;
+            --md-surface-container-low: #191c20;
+            --md-surface-container: #202429;
+            --md-outline: #8c9199;
+            --md-surface-variant: #44474e;
+            --md-highlight: rgba(168, 199, 250, 0.15);
+            --md-shadow: rgba(0,0,0,0.5);
+        }
+
+        /* Sepia Theme */
+        body[data-theme="sepia"] {
+            --md-primary: #5d4037; 
+            --md-on-primary: #ffffff;
+            --md-primary-hover: #4e342e;
+            --md-surface: #f4ecd8;
+            --md-on-surface: #4e342e;
+            --md-surface-container-low: #e8dfc7;
+            --md-surface-container: #dccfb3;
+            --md-outline: #8d6e63;
+            --md-surface-variant: #d7ccc8;
+            --md-highlight: rgba(93, 64, 55, 0.1);
+            --md-shadow: rgba(93, 64, 55, 0.15);
+        }
+
+        /* Global Reset & Typography */
+        * { box-sizing: border-box; }
+        body {
+            font-family: var(--font-family);
+            background-color: var(--md-surface);
+            color: var(--md-on-surface);
+            margin: 0;
+            padding: 0;
+            font-size: var(--base-font-size);
+            line-height: var(--base-line-height);
+            letter-spacing: var(--base-letter-spacing);
+            transition: background-color 0.3s ease, color 0.3s ease, font-size 0.2s ease, line-height 0.2s ease;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* App Bar & Search */
+        .app-bar {
+            position: sticky;
+            top: 0;
+            background-color: var(--md-surface);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 3px var(--md-shadow);
+            z-index: 100;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .app-bar h1 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--md-primary);
+            cursor: pointer;
+        }
+        .search-container {
+            display: flex;
+            align-items: center;
+            background-color: var(--md-surface-container-low);
+            border-radius: 28px;
+            padding: 8px 16px;
+            flex-grow: 1;
+            max-width: 400px;
+            border: 1px solid transparent;
+            transition: border-color 0.2s, background-color 0.2s;
+        }
+        .search-container:focus-within {
+            border-color: var(--md-primary);
+            background-color: var(--md-surface);
+        }
+        .search-container input {
+            border: none;
+            background: none;
+            outline: none;
+            padding: 8px;
+            width: 100%;
+            font-family: inherit;
+            font-size: 1rem;
+            color: var(--md-on-surface);
+        }
+        .search-container .material-symbols-outlined { color: var(--md-outline); }
+
+        /* Layout Views */
+        .view {
+            display: none;
+            opacity: 0;
+            padding: 32px 24px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .view.active {
+            display: block;
+            animation: fadeSlideUp 0.4s ease forwards;
+        }
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Home Grid */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 24px;
+        }
+
+        /* Material 3 Card */
+        .md-card {
+            background-color: var(--md-surface-container-low);
+            border-radius: var(--shape-corner-card);
+            overflow: hidden;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1);
+        }
+        .md-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px var(--md-shadow);
+        }
+        .md-card-img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-bottom: 1px solid var(--md-surface-variant);
+        }
+        .md-card-content { padding: 24px; }
+        .md-card-title {
+            margin: 0 0 8px 0;
+            font-size: 1.35rem;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+        .md-card-date {
+            color: var(--md-outline);
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Reader View */
+        .reader-container {
+            max-width: 760px;
+            margin: 0 auto;
+        }
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: none;
+            background: none;
+            color: var(--md-primary);
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            padding: 8px 16px;
+            border-radius: 16px;
+            margin-bottom: 24px;
+            font-family: inherit;
+            transition: background-color 0.2s;
+        }
+        .back-btn:hover { background-color: var(--md-highlight); }
+        
+        .reader-header-img {
+            width: 100%;
+            border-radius: var(--shape-corner-card);
+            max-height: 450px;
+            object-fit: cover;
+            margin-bottom: 32px;
+        }
+        .reader-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0 0 16px 0;
+            line-height: 1.2;
+        }
+        .reader-meta { 
+            color: var(--md-outline); 
+            margin-bottom: 40px; 
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--md-surface-variant);
+        }
+
+        /* Content Styling inside Reader */
+        .reader-content { margin-bottom: 80px; }
+        .reader-content img { max-width: 100%; border-radius: 16px; margin: 24px 0; }
+        .reader-content h1, .reader-content h2, .reader-content h3 { margin-top: 1.8em; margin-bottom: 0.8em; font-weight: 700; }
+        .reader-content a { color: var(--md-primary); }
+        
+        .reader-content p {
+            margin-bottom: 1.2em;
+            padding: 6px 12px;
+            margin-left: -12px;
+            margin-right: -12px;
+            border-radius: 12px;
+            transition: background-color 0.3s ease;
+        }
+
+        /* Reading Guide Highlighting */
+        body.reading-guide-active .reader-content p:hover,
+        body.reading-guide-active .reader-content p.rg-highlight {
+            background-color: var(--md-highlight);
+        }
+
+        /* Custom DCP Button Component */
+        .dcp-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background-color: var(--md-primary) !important;
+            color: var(--md-on-primary) !important;
+            padding: 12px 28px;
+            border-radius: var(--shape-corner-btn);
+            text-decoration: none;
+            font-weight: 700;
+            font-family: inherit;
+            font-size: 1rem;
+            box-shadow: 0 2px 4px var(--md-shadow);
+            transition: background-color 0.2s, box-shadow 0.2s, transform 0.1s;
+            margin: 24px 0;
+            border: none;
+            cursor: pointer;
+        }
+        .dcp-btn:hover {
+            background-color: var(--md-primary-hover) !important;
+            box-shadow: 0 4px 8px var(--md-shadow);
+        }
+        .dcp-btn:active { transform: scale(0.98); }
+
+        /* Floating Settings (Reading Suite) */
+        .settings-fab {
+            position: fixed;
+            bottom: 32px;
+            right: 32px;
+            background-color: var(--md-surface-container);
+            color: var(--md-on-surface);
+            border: 1px solid var(--md-surface-variant);
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px var(--md-shadow);
+            cursor: pointer;
+            z-index: 200;
+            transition: all 0.2s;
+        }
+        .settings-fab:hover { background-color: var(--md-surface-variant); }
+        
+        .settings-panel {
+            position: fixed;
+            bottom: 100px;
+            right: 32px;
+            background-color: var(--md-surface);
+            border-radius: var(--shape-corner-card);
+            padding: 24px;
+            box-shadow: 0 8px 24px var(--md-shadow);
+            width: 320px;
+            max-height: 70vh;
+            overflow-y: auto;
+            z-index: 200;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(16px) scale(0.95);
+            transform-origin: bottom right;
+            transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
+            border: 1px solid var(--md-surface-variant);
+        }
+        .settings-panel.open {
+            opacity: 1;
+            pointer-events: all;
+            transform: translateY(0) scale(1);
+        }
+
+        .settings-group { margin-bottom: 20px; }
+        .settings-group:last-child { margin-bottom: 0; }
+        .settings-group label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: var(--md-on-surface);
+            margin-bottom: 8px;
+        }
+        
+        /* UI Inputs */
+        input[type="range"] {
+            -webkit-appearance: none; width: 100%; height: 6px;
+            background: var(--md-surface-variant); border-radius: 4px; outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 20px; height: 20px;
+            border-radius: 50%; background: var(--md-primary); cursor: pointer;
+        }
+        select {
+            width: 100%; padding: 10px 12px; border-radius: 12px;
+            border: 1px solid var(--md-outline); background: var(--md-surface);
+            font-family: inherit; font-size: 1rem; color: var(--md-on-surface); outline: none;
+        }
+        select:focus { border-color: var(--md-primary); border-width: 2px; padding: 9px 11px; }
+
+        /* Toggle Switch */
+        .switch { position: relative; display: inline-block; width: 48px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--md-surface-variant); transition: .3s; border-radius: 26px;
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 20px; width: 20px;
+            left: 3px; bottom: 3px; background-color: var(--md-outline); transition: .3s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--md-primary); }
+        input:checked + .slider:before { transform: translateX(22px); background-color: var(--md-on-primary); }
+
+        /* Empty State / Loader */
+        .status-container {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; padding: 64px 24px; color: var(--md-outline); grid-column: 1 / -1; text-align: center;
+        }
+        .spinner {
+            width: 48px; height: 48px; border: 4px solid var(--md-surface-variant);
+            border-top-color: var(--md-primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <!-- Header & Search -->
+    <header class="app-bar">
+        <h1 onclick="showView('home-view')" tabindex="0">DocuComp Blog</h1>
+        <div class="search-container">
+            <span class="material-symbols-outlined">search</span>
+            <input type="text" id="search-input" placeholder="Search posts..." aria-label="Search posts">
+        </div>
+    </header>
+
+    <main>
+        <!-- Home / Grid View -->
+        <div id="home-view" class="view active">
+            <div class="grid" id="post-grid"></div>
+        </div>
+
+        <!-- Reader / Post View -->
+        <div id="reader-view" class="view">
+            <div class="reader-container">
+                <button class="back-btn" onclick="showView('home-view')">
+                    <span class="material-symbols-outlined">arrow_back</span> Back to Feed
+                </button>
+                <img id="reader-header-img" class="reader-header-img" src="" alt="Post Cover" onerror="this.style.display='none'">
+                <h1 id="reader-title" class="reader-title"></h1>
+                <div class="reader-meta">
+                    <span class="material-symbols-outlined" style="font-size: 18px;">calendar_today</span>
+                    <span id="reader-date"></span>
+                </div>
+                <div id="reader-body" class="reader-content"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Reading Suite Floating Settings -->
+    <button id="settings-fab" class="settings-fab" aria-label="Open Reading Settings">
+        <span class="material-symbols-outlined">palette</span>
+    </button>
+
+    <div id="settings-panel" class="settings-panel" role="dialog" aria-label="Reading Settings">
+        <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 1.1rem;">Reading Suite</h3>
+        
+        <div class="settings-group">
+            <label for="theme-select">Theme</label>
+            <select id="theme-select">
+                <option value="light">Light (Default)</option>
+                <option value="dark">Dark Mode</option>
+                <option value="sepia">Sepia (Eye Comfort)</option>
+            </select>
+        </div>
+
+        <div class="settings-group">
+            <label for="font-select">Font Family</label>
+            <select id="font-select">
+                <option value="sans">Sans-Serif (Google Sans)</option>
+                <option value="serif">Serif (Merriweather)</option>
+                <option value="dyslexic">Dyslexia Friendly (Comic Sans)</option>
+            </select>
+        </div>
+
+        <div class="settings-group">
+            <label for="text-size">Text Size (<span id="text-size-val">16</span>px)</label>
+            <input type="range" id="text-size" min="14" max="28" value="16">
+        </div>
+
+        <div class="settings-group">
+            <label for="line-spacing">Line Spacing</label>
+            <select id="line-spacing">
+                <option value="1.5">Standard (1.5)</option>
+                <option value="1.8">Relaxed (1.8)</option>
+                <option value="2.2">Loose (2.2)</option>
+            </select>
+        </div>
+
+        <div class="settings-group">
+            <label for="letter-spacing">Letter Spacing</label>
+            <select id="letter-spacing">
+                <option value="normal">Standard</option>
+                <option value="0.5px">Wide</option>
+                <option value="1px">Extra Wide</option>
+            </select>
+        </div>
+
+        <div class="settings-group" style="margin-bottom: 8px;">
+            <label style="margin: 0; cursor: pointer;">
+                Reading Guide
+                <div class="switch">
+                    <input type="checkbox" id="reading-guide-toggle">
+                    <span class="slider"></span>
+                </div>
+            </label>
+            <small style="color: var(--md-outline); font-size: 0.75rem; display: block; margin-top: 4px;">Highlights center paragraph to aid focus.</small>
+        </div>
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        // Global State
+        let allPosts = [];
+
+        const REPO = 'mahi902/DocuComp';
+        const API_BASE = `https://api.github.com/repos/${REPO}`;
+        const API_HEADERS = { 'Accept': 'application/vnd.github.v3+json' };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initBlog();
+            setupSearch();
+            setupReadingSuite();
+        });
+
+        // -- Fetching & Parsing --
+        async function initBlog() {
+            const grid = document.getElementById('post-grid');
+            grid.innerHTML = `<div class="status-container"><div class="spinner"></div><p>Fetching posts...</p></div>`;
+
+            try {
+                const res = await fetch(`${API_BASE}/contents/posts`, { headers: API_HEADERS });
+                if (!res.ok) throw new Error('API/Repo not found');
+                
+                const files = await res.json();
+                const mdFiles = files.filter(f => f.name.endsWith('.md'));
+
+                if (mdFiles.length === 0) {
+                    grid.innerHTML = '<div class="status-container"><p>No markdown posts found.</p></div>';
+                    return;
+                }
+
+                for (const file of mdFiles) {
+                    try {
+                        const contentRes = await fetch(file.download_url);
+                        const mdContent = await contentRes.text();
+
+                        const title = file.name.replace('.md', '').replace(/-/g, ' ');
+                        const imgMatch = mdContent.match(/!\[.*?\]\((.*?)\)/);
+                        const coverImg = imgMatch ? imgMatch[1] : 'https://placehold.co/800x400/eef0f6/191c20?text=No+Cover+Image';
+
+                        allPosts.push({
+                            title,
+                            coverImg,
+                            date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+                            content: mdContent
+                        });
+                    } catch (err) { console.error('Failed processing:', file.name); }
+                }
+                renderGrid(allPosts);
+            } catch (err) {
+                console.warn('API Failed. Loading Fallback Data.');
+                loadMockData();
+            }
+        }
+
+        // -- UI Rendering & Search --
+        function renderGrid(posts) {
+            const grid = document.getElementById('post-grid');
+            grid.innerHTML = '';
+
+            if (posts.length === 0) {
+                grid.innerHTML = '<div class="status-container"><p>No posts match your search.</p></div>';
+                return;
+            }
+
+            posts.forEach(postData => {
+                const card = document.createElement('article');
+                card.className = 'md-card';
+                card.tabIndex = 0;
+                card.addEventListener('keypress', (e) => { if(e.key === 'Enter') openPost(postData); });
+                card.addEventListener('click', () => openPost(postData));
+
+                card.innerHTML = `
+                    <img src="${postData.coverImg}" class="md-card-img" onerror="this.src='https://placehold.co/800x400/eef0f6/191c20?text=Error'">
+                    <div class="md-card-content">
+                        <h2 class="md-card-title">${postData.title}</h2>
+                        <div class="md-card-date"><span class="material-symbols-outlined" style="font-size:16px">schedule</span>${postData.date}</div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function setupSearch() {
+            const searchInput = document.getElementById('search-input');
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                const filtered = allPosts.filter(post => 
+                    post.title.toLowerCase().includes(query) || 
+                    post.content.toLowerCase().includes(query)
+                );
+                
+                // If viewing a post while searching, return to home view
+                if (document.getElementById('reader-view').classList.contains('active')) {
+                    showView('home-view');
+                }
+                
+                renderGrid(filtered);
+            });
+        }
+
+        function openPost(postData) {
+            // DCP TAG FIX: Catches <DCP>, <dcp>, &lt;DCP&gt; and ignores random spacing/newlines.
+            const dcpRegex = /(?:<|&lt;)DCP(?:>|&gt;)\s*(.*?)\s*(?:<|&lt;)\/DCP(?:>|&gt;)/gi;
+            
+            const processedMd = postData.content.replace(dcpRegex, (match, url) => {
+                return `<a href="${url.trim()}" class="dcp-btn" target="_blank" rel="noopener noreferrer">
+                            <span class="material-symbols-outlined">edit</span> Open in DocuWrite Pro
+                        </a>`;
+            });
+
+            document.getElementById('reader-header-img').src = postData.coverImg;
+            document.getElementById('reader-header-img').style.display = 'block';
+            document.getElementById('reader-title').textContent = postData.title;
+            document.getElementById('reader-date').textContent = postData.date;
+            
+            // Parse Markdown to HTML
+            document.getElementById('reader-body').innerHTML = marked.parse(processedMd);
+
+            showView('reader-view');
+            updateReadingGuide();
+        }
+
+        function showView(viewId) {
+            document.querySelectorAll('.view').forEach(v => {
+                v.classList.remove('active');
+                setTimeout(() => { if (!v.classList.contains('active')) v.style.display = 'none'; }, 50);
+            });
+            const target = document.getElementById(viewId);
+            target.style.display = 'block';
+            void target.offsetWidth; 
+            target.classList.add('active');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // -- Accessibility & Reading Suite --
+        function setupReadingSuite() {
+            const fab = document.getElementById('settings-fab');
+            const panel = document.getElementById('settings-panel');
+            
+            fab.addEventListener('click', (e) => {
+                panel.classList.toggle('open');
+                e.stopPropagation();
+            });
+            document.addEventListener('click', (e) => {
+                if (panel.classList.contains('open') && !panel.contains(e.target) && !fab.contains(e.target)) {
+                    panel.classList.remove('open');
+                }
+            });
+
+            // Theme Setting
+            document.getElementById('theme-select').addEventListener('change', (e) => {
+                document.body.setAttribute('data-theme', e.target.value);
+            });
+
+            // Font Setting
+            document.getElementById('font-select').addEventListener('change', (e) => {
+                const map = {
+                    'sans': "'Google Sans', 'Product Sans', 'Roboto', sans-serif",
+                    'serif': "'Merriweather', 'Georgia', serif",
+                    'dyslexic': "'Comic Sans MS', 'Comic Sans', cursive, sans-serif"
+                };
+                document.documentElement.style.setProperty('--font-family', map[e.target.value]);
+            });
+
+            // Text Size
+            document.getElementById('text-size').addEventListener('input', (e) => {
+                document.getElementById('text-size-val').textContent = e.target.value;
+                document.documentElement.style.setProperty('--base-font-size', `${e.target.value}px`);
+            });
+
+            // Line Spacing
+            document.getElementById('line-spacing').addEventListener('change', (e) => {
+                document.documentElement.style.setProperty('--base-line-height', e.target.value);
+            });
+
+            // Letter Spacing
+            document.getElementById('letter-spacing').addEventListener('change', (e) => {
+                document.documentElement.style.setProperty('--base-letter-spacing', e.target.value);
+            });
+
+            // Reading Guide Toggle
+            document.getElementById('reading-guide-toggle').addEventListener('change', (e) => {
+                document.body.classList.toggle('reading-guide-active', e.target.checked);
+                updateReadingGuide();
+            });
+
+            let isScrolling = false;
+            window.addEventListener('scroll', () => {
+                if (!document.body.classList.contains('reading-guide-active')) return;
+                if (!isScrolling) {
+                    window.requestAnimationFrame(() => {
+                        updateReadingGuide();
+                        isScrolling = false;
+                    });
+                    isScrolling = true;
+                }
+            });
+        }
+
+        function updateReadingGuide() {
+            if (!document.body.classList.contains('reading-guide-active')) {
+                document.querySelectorAll('.reader-content p').forEach(p => p.classList.remove('rg-highlight'));
+                return;
+            }
+            const paragraphs = document.querySelectorAll('.reader-content p');
+            const centerY = window.innerHeight / 2;
+            let closestP = null;
+            let minDistance = Infinity;
+
+            paragraphs.forEach(p => {
+                p.classList.remove('rg-highlight');
+                const rect = p.getBoundingClientRect();
+                const pCenter = rect.top + rect.height / 2;
+                const distance = Math.abs(centerY - pCenter);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestP = p;
+                }
+            });
+            if (closestP && minDistance < (window.innerHeight / 2.5)) {
+                closestP.classList.add('rg-highlight');
+            }
+        }
+
+        // -- Mock Data Initialization --
+        function loadMockData() {
+            allPosts = [
+                {
+                    title: "Using Custom Component Parsers",
+                    coverImg: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=1000&auto=format&fit=crop",
+                    date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+                    content: `
+Welcome to the upgraded Headless GitHub Blog. The search bar at the top can instantly filter these cards.
+
+## Custom Tag Integration (Fixed)
+The issue with the button not rendering has been patched. Markdown engines often convert \`<\` and \`>\` into HTML entities (\`&lt;\`). The new parser intercepts these entities perfectly. 
+
+Try clicking the custom button generated from the raw text below:
+<DCP> https://docuwrite.app/edit/998877 </DCP>
+
+## Accessibility Expansion
+Open the floating **Reading Suite** menu via the palette icon. You can now change the **Theme** to Dark or Sepia, adjust **Fonts** (including a Dyslexia-friendly setup), and modify **Letter Spacing**.
+                    `
+                },
+                {
+                    title: "Advanced Search Integration",
+                    coverImg: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=1000&auto=format&fit=crop",
+                    date: "April 9, 2026",
+                    content: `
+## Client-Side Filtering
+Because this app runs without a backend, we maintain the \`allPosts\` array in JavaScript memory. 
+
+When you type into the header's search bar, an event listener instantly filters the global post list against both the **Title** and the **Markdown Content**, re-rendering the grid in milliseconds. 
+
+If you are reading an article and initiate a search, the app automatically transitions you back to the feed to view your results.
+                    `
+                }
+            ];
+            renderGrid(allPosts);
+        }
+    </script>
+</body>
+</html>
