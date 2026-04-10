@@ -1,5 +1,3 @@
-![Punctuality](https://placehold.co/800x450/e3f2fd/1565c0?text=Punctuality&font=poppins)
-
 Punctuality is one of the most essential qualities in a person’s life. It means doing things at the right time and respecting the value of time in every aspect of life. A punctual person understands that time once lost can never be regained. In today’s fast-moving world, punctuality is not just a good habit—it is a necessity for success, discipline, and personal growth.
 
 Firstly, punctuality builds discipline and responsibility. When a person follows a fixed routine and completes tasks on time, they develop a sense of order in life. Students who attend classes regularly and submit their work on time perform better academically. Similarly, professionals who arrive on time and meet deadlines are considered reliable and trustworthy. Punctuality also reduces stress, as it helps individuals stay organized and avoid last-minute rushes.
