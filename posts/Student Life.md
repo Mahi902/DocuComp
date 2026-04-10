@@ -1,5 +1,3 @@
-# Student Life
-
 The period of time we spend to receive education is called student life. It is the most valuable and formative stage in a person’s journey. It is often called the golden period of life because it shapes the mind, builds character, and prepares individuals for the future. During this time, a student gathers knowledge, develops habits, and forms ideals that guide him throughout his life. The experiences of student life leave a lasting impact, making it a crucial phase of personal and intellectual development. This development shapes the success for his future.
 
 The first and foremost duty of a student is to devote himself wholeheartedly to his studies. Education is the main purpose of student life, and without sincere effort in learning, this period loses its true meaning. A student must attend classes regularly, listen attentively, complete assignments, and revise lessons properly. Hard work, concentration, and dedication are essential for achieving success. Only through consistent study can a student build a strong foundation for the future.
