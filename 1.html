@@ -1,0 +1,1458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DocuComp | Composition Engine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Product+Sans&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root {
+            --md-primary: #0b57d0;
+            --md-secondary: #ea4335;
+            --md-on-primary: #ffffff;
+            --md-primary-hover: #0842a0;
+            --md-surface: #fbfdfe;
+            --md-on-surface: #191c20;
+            --md-surface-container-low: #f3f4f9;
+            --md-surface-container: #eef0f6;
+            --md-outline: #74777f;
+            --md-surface-variant: #e1e2e8;
+            --md-highlight: rgba(26,115,232,0.1);
+            --md-shadow: rgba(0,0,0,0.1);
+            --font-family: 'Google Sans','Product Sans','Roboto',sans-serif;
+            --base-font-size: 16px;
+            --base-line-height: 1.5;
+            --base-word-spacing: 0px;
+            --base-letter-spacing: normal;
+            --base-text-align: left;
+            --shape-corner-card: 24px;
+            --shape-corner-btn: 28px;
+        }
+        body[data-theme="dark"] {
+            --md-primary: #a8c7fa; --md-secondary: #ff8a80; --md-on-primary: #062e6f;
+            --md-primary-hover: #7ca8f9; --md-surface: #111315; --md-on-surface: #e2e2e6;
+            --md-surface-container-low: #191c20; --md-surface-container: #202429;
+            --md-outline: #8c9199; --md-surface-variant: #44474e;
+            --md-highlight: rgba(168,199,250,0.15); --md-shadow: rgba(0,0,0,0.5);
+        }
+        body[data-theme="sepia"] {
+            --md-primary: #5d4037; --md-secondary: #bf360c; --md-on-primary: #ffffff;
+            --md-primary-hover: #4e342e; --md-surface: #f4ecd8; --md-on-surface: #4e342e;
+            --md-surface-container-low: #e8dfc7; --md-surface-container: #dccfb3;
+            --md-outline: #8d6e63; --md-surface-variant: #d7ccc8;
+            --md-highlight: rgba(93,64,55,0.1); --md-shadow: rgba(93,64,55,0.15);
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: var(--font-family); background-color: var(--md-surface);
+            color: var(--md-on-surface); margin: 0; padding: 0;
+            font-size: var(--base-font-size); line-height: var(--base-line-height);
+            word-spacing: var(--base-word-spacing); letter-spacing: var(--base-letter-spacing);
+            text-align: var(--base-text-align);
+            transition: background-color 0.3s ease, color 0.3s ease; -webkit-font-smoothing: antialiased;
+        }
+        .view { display: none; opacity: 0; padding: 32px 24px; max-width: 1200px; margin: 0 auto; min-height: 100vh; }
+        .view.active { display: block; animation: fadeSlideUp 0.4s ease forwards; }
+        @keyframes fadeSlideUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+        .top-bar {
+            position: sticky; top: 0; background-color: rgba(var(--md-surface),0.95);
+            backdrop-filter: blur(8px); padding: 16px 24px; display: flex; align-items: center;
+            gap: 16px; box-shadow: 0 1px 3px var(--md-shadow); z-index: 100;
+        }
+        .header-actions { position: absolute; top: 24px; right: 24px; z-index: 50; }
+        .icon-btn {
+            background: var(--md-surface-container); border: none; color: var(--md-on-surface);
+            width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center;
+            justify-content: center; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 5px var(--md-shadow);
+        }
+        .icon-btn:hover { background: var(--md-surface-variant); transform: scale(1.05); }
+        .home-center-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 50vh; text-align: center; margin-bottom: 40px; }
+        .brand-title { font-size: clamp(3rem,8vw,5rem); font-weight: 700; margin: 0 0 32px; letter-spacing: -1px; }
+        .brand-docu { color: var(--md-primary); } .brand-comp { color: var(--md-secondary); }
+        .main-search-wrapper { width: 100%; max-width: 600px; margin-bottom: 24px; position: relative; }
+        .main-search-input {
+            width: 100%; padding: 16px 24px 16px 56px; border-radius: 32px;
+            border: 2px solid var(--md-surface-variant); background: var(--md-surface);
+            font-size: 1.1rem; color: var(--md-on-surface); outline: none;
+            transition: 0.2s, box-shadow 0.2s; box-shadow: 0 4px 12px var(--md-shadow);
+        }
+        .main-search-input:focus { border-color: var(--md-primary); box-shadow: 0 8px 24px var(--md-shadow); }
+        .search-icon { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); color: var(--md-outline); font-size: 28px; }
+        .home-buttons { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-bottom: 40px; }
+        .btn-tonal {
+            background: var(--md-surface-container-low); color: var(--md-on-surface);
+            border: 1px solid var(--md-surface-variant); padding: 10px 24px;
+            border-radius: var(--shape-corner-btn); font-weight: 500; cursor: pointer;
+            font-size: 1rem; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px;
+        }
+        .btn-tonal:hover { background: var(--md-surface-variant); }
+        .stats-bar { display: flex; gap: 24px; font-size: 0.9rem; color: var(--md-outline); justify-content: center; flex-wrap: wrap; margin-bottom: 40px; }
+        .stats-item strong { color: var(--md-on-surface); }
+        .stats-item span.link { color: var(--md-primary); cursor: pointer; }
+        .stats-item span.link:hover { text-decoration: underline; }
+        .section-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; border-bottom: 2px solid var(--md-surface-variant); padding-bottom: 8px; }
+        .section-title { font-size: 1.5rem; font-weight: 700; margin: 0; border: none; padding: 0; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(320px,1fr)); gap: 24px; }
+        .md-card {
+            background-color: var(--md-surface-container-low); border-radius: var(--shape-corner-card);
+            overflow: hidden; cursor: pointer; border: 2px solid transparent;
+            transition: transform 0.2s cubic-bezier(0.2,0,0,1), box-shadow 0.2s cubic-bezier(0.2,0,0,1), border-color 0.2s;
+            display: flex; flex-direction: column; height: 340px; position: relative;
+        }
+        .md-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px var(--md-shadow); }
+        .md-card.selected { border-color: var(--md-primary); box-shadow: 0 8px 32px var(--md-shadow); }
+        .md-card.selected .md-card-gradient { background-size: 200% 200% !important; animation: gradientShift 3s ease infinite; }
+        @keyframes gradientShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        .card-placeholder { height: 340px; width: 100%; background: var(--md-surface-container); border-radius: var(--shape-corner-card); }
+        .md-card-img { width: 100%; height: 180px; object-fit: cover; border-bottom: 1px solid var(--md-surface-variant); flex-shrink: 0; }
+        .md-card-gradient {
+            width: 100%; height: 180px; display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 800; font-size: clamp(0.8rem,1.8vw,1rem); text-align: center;
+            padding: 16px; text-shadow: 0 2px 6px rgba(0,0,0,0.35); line-height: 1.3;
+            border-bottom: 1px solid var(--md-surface-variant); flex-shrink: 0; word-break: break-word; overflow: hidden;
+        }
+        .md-card-content { padding: 20px; display: flex; flex-direction: column; flex-grow: 1; }
+        .md-card-title { margin: 0 0 8px; font-size: 1.2rem; font-weight: 700; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .md-card-date { color: var(--md-outline); font-size: 0.875rem; display: flex; align-items: center; gap: 6px; margin-top: auto; }
+        .search-results-list { display: flex; flex-direction: column; gap: 24px; max-width: 800px; margin: 0 auto; }
+        .result-item { padding: 24px; background: var(--md-surface-container-low); border-radius: 16px; cursor: pointer; transition: 0.2s; border: 1px solid var(--md-surface-variant); }
+        .result-item:hover { background: var(--md-surface-variant); transform: translateX(4px); }
+        .result-title { font-size: 1.3rem; color: var(--md-primary); margin: 0 0 8px; font-weight: 700; }
+        .result-snippet { font-size: 0.95rem; color: var(--md-on-surface); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 16px; margin-top: 40px; }
+        .page-btn { padding: 8px 16px; border-radius: 8px; background: var(--md-surface-container); border: none; cursor: pointer; color: var(--md-on-surface); font-weight: 600; transition: 0.2s; }
+        .page-btn:hover:not(:disabled) { background: var(--md-primary); color: white; }
+        .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .search-mode-tabs { display: flex; gap: 10px; max-width: 800px; margin: 0 auto 28px; }
+        .search-tab {
+            flex: 1; padding: 11px 16px; border-radius: 14px; border: 2px solid var(--md-surface-variant);
+            background: var(--md-surface-container-low); color: var(--md-on-surface);
+            font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 0.97rem;
+            display: flex; align-items: center; justify-content: center; gap: 8px; font-family: var(--font-family);
+        }
+        .search-tab.active { background: var(--md-primary); color: var(--md-on-primary); border-color: var(--md-primary); }
+        .search-tab:not(.active):hover { background: var(--md-surface-variant); }
+        .structure-card { max-width: 800px; margin: 0 auto; background: var(--md-surface-container-low); border: 1px solid var(--md-surface-variant); border-radius: 20px; padding: 32px; }
+        .structure-badge { display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg,#667eea,#764ba2); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; }
+        .structure-input-row { display: flex; gap: 10px; align-items: stretch; margin-top: 20px; }
+        .structure-input-row input { flex: 1; }
+        .structure-output { margin-top: 24px; padding: 24px; background: var(--md-surface); border-radius: 16px; border-left: 4px solid var(--md-primary); font-size: 1.15rem; line-height: 1.85; color: var(--md-on-surface); display: none; }
+        .structure-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+        
+        #reader-view {
+            background: rgba(var(--md-surface), 0.7) !important;
+            backdrop-filter: blur(20px) saturate(160%);
+            -webkit-backdrop-filter: blur(20px) saturate(160%);
+        }
+        .reader-container { max-width: 800px; margin: 0 auto; padding-top: 24px; }
+        .reader-header-img { width: 100%; border-radius: var(--shape-corner-card); max-height: 450px; object-fit: cover; margin-bottom: 32px; box-shadow: 0 4px 12px var(--md-shadow); }
+        .reader-title { font-size: clamp(2rem,5vw,3rem); font-weight: 700; margin: 0 0 16px; line-height: 1.2; }
+        .reader-meta-group { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; color: var(--md-outline); margin-bottom: 16px; font-size: 0.95rem; }
+        .meta-item { display: flex; align-items: center; gap: 6px; }
+        .author-link { color: var(--md-primary); text-decoration: none; font-weight: 500; }
+        .author-link:hover { text-decoration: underline; }
+        .tag-container { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid var(--md-surface-variant); }
+        .tag-pill { background: var(--md-surface-container); color: var(--md-on-surface); padding: 4px 12px; border-radius: 16px; font-size: 0.85rem; font-weight: 500; }
+        .action-bar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 32px; position: relative; }
+        
+        .inline-dropdown-menu {
+            position: absolute; top: 100%; left: 0; background: var(--md-surface);
+            border-radius: 16px; padding: 8px; box-shadow: 0 8px 24px var(--md-shadow);
+            border: 1px solid var(--md-surface-variant); display: none; flex-direction: column;
+            min-width: 180px; z-index: 500; margin-top: 6px;
+        }
+        .inline-dropdown-menu.open { display: flex; }
+        .inline-dropdown-item {
+            padding: 10px 16px; border-radius: 10px; cursor: pointer;
+            font-weight: 500; display: flex; align-items: center; gap: 10px; transition: 0.15s;
+        }
+        .inline-dropdown-item:hover { background: var(--md-surface-container); }
+
+        .btn-primary {
+            background-color: var(--md-primary) !important; color: var(--md-on-primary) !important;
+            padding: 10px 24px; border-radius: var(--shape-corner-btn); text-decoration: none;
+            font-weight: 600; display: inline-flex; align-items: center; gap: 8px; border: none; cursor: pointer; transition: 0.2s;
+        }
+        .btn-primary:hover { background-color: var(--md-primary-hover) !important; box-shadow: 0 4px 8px var(--md-shadow); }
+        .reader-content { margin-bottom: 80px; }
+        .reader-content img { max-width: 100%; border-radius: 16px; margin: 24px 0; }
+        .reader-content h1, .reader-content h2, .reader-content h3 { margin-top: 1.8em; margin-bottom: 0.8em; font-weight: 700; }
+        .reader-content a { color: var(--md-primary); }
+        .reader-content p { margin-bottom: 1.2em; padding: 6px 12px; margin-left: -12px; margin-right: -12px; border-radius: 12px; transition: background-color 0.3s ease; }
+        
+        .quota-bar-container { background: var(--md-surface-container); border-radius: 8px; height: 10px; width: 100%; overflow: hidden; margin: 12px 0 6px 0; }
+        .quota-bar-fill { height: 100%; background: var(--md-primary); width: 0%; transition: width 0.3s ease; }
+        .quota-bar-fill.danger { background: var(--md-secondary); }
+        .lang-badge-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; min-height: 24px; }
+        .lang-badge { display: inline-flex; align-items: center; gap: 8px; background: var(--md-surface-container-low); border: 1px solid var(--md-surface-variant); padding: 4px 12px; border-radius: 16px; font-size: 0.85rem; }
+        .lang-badge .lang-name { cursor: pointer; font-weight: 500; color: var(--md-primary); }
+        .lang-badge .lang-name:hover { text-decoration: underline; }
+        .lang-badge .lang-del { cursor: pointer; color: var(--md-outline); font-size: 16px; display: inline-flex; align-items: center; }
+        .lang-badge .lang-del:hover { color: var(--md-secondary); }
+
+        body.reading-guide-active .reader-content p:hover,
+        body.reading-guide-active .reader-content p.rg-highlight { background-color: var(--md-highlight); }
+        .fab { position: fixed; bottom: 32px; right: 32px; background-color: var(--md-primary); color: var(--md-on-primary); width: 64px; height: 64px; border-radius: 20px; border: none; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px var(--md-shadow); cursor: pointer; z-index: 200; transition: all 0.2s; }
+        .fab:hover { transform: scale(1.05); box-shadow: 0 6px 16px var(--md-shadow); }
+        .fab .material-symbols-outlined { font-size: 28px; }
+        .floating-panel { position: fixed; bottom: 110px; right: 32px; background-color: var(--md-surface); border-radius: var(--shape-corner-card); padding: 24px; box-shadow: 0 8px 24px var(--md-shadow); width: 340px; max-height: 82vh; overflow-y: auto; z-index: 200; opacity: 0; pointer-events: none; transform: translateY(16px) scale(0.95); transform-origin: bottom right; transition: all 0.25s cubic-bezier(0.2,0,0,1); border: 1px solid var(--md-surface-variant); }
+        .floating-panel.open { opacity: 1; pointer-events: all; transform: translateY(0) scale(1); }
+        .settings-group { margin-bottom: 20px; }
+        .settings-group label { display: block; font-size: 0.875rem; font-weight: 700; color: var(--md-on-surface); margin-bottom: 8px; }
+        .custom-select { position: relative; width: 100%; user-select: none; }
+        .select-selected { background-color: var(--md-surface); border: 2px solid var(--md-surface-variant); padding: 10px 16px; border-radius: 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 500; }
+        .select-selected:after { content: "expand_more"; font-family: "Material Symbols Outlined"; font-size: 20px; }
+        .select-items { position: absolute; background-color: var(--md-surface); top: 110%; left: 0; right: 0; z-index: 99; border-radius: 12px; box-shadow: 0 4px 16px var(--md-shadow); border: 1px solid var(--md-surface-variant); overflow: hidden; opacity: 0; pointer-events: none; transform: translateY(-10px); transition: 0.2s; }
+        .custom-select.active .select-items { opacity: 1; pointer-events: all; transform: translateY(0); }
+        .custom-select.active .select-selected { border-color: var(--md-primary); }
+        .custom-select.active .select-selected:after { transform: rotate(180deg); }
+        .select-items div { padding: 12px 16px; cursor: pointer; transition: 0.2s; }
+        .select-items div:hover { background-color: var(--md-surface-container); }
+        input[type="range"] { -webkit-appearance: none; width: 100%; height: 6px; background: var(--md-surface-variant); border-radius: 4px; outline: none; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--md-primary); cursor: pointer; }
+        .switch { position: relative; display: inline-block; width: 48px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--md-surface-variant); transition: .3s; border-radius: 26px; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: var(--md-outline); transition: .3s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--md-primary); }
+        input:checked + .slider:before { transform: translateX(22px); background-color: var(--md-on-primary); }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; pointer-events: none; transition: 0.3s; }
+        .modal-overlay.open { opacity: 1; pointer-events: all; }
+        .modal-content { background: var(--md-surface); padding: 32px; border-radius: 24px; max-width: 420px; width: 90%; text-align: center; transform: scale(0.9); transition: 0.3s cubic-bezier(0.2,0,0,1); box-shadow: 0 24px 48px rgba(0,0,0,0.2); }
+        .modal-overlay.open .modal-content { transform: scale(1); }
+        .modal-title { font-size: 1.5rem; color: var(--md-primary); margin-top: 0; margin-bottom: 16px; }
+        .modal-text { color: var(--md-on-surface); line-height: 1.6; margin-bottom: 24px; }
+        .toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--md-on-surface); color: var(--md-surface); padding: 12px 24px; border-radius: 32px; font-weight: 500; z-index: 2000; transition: transform 0.3s cubic-bezier(0.2,0,0,1); }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .status-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 64px 24px; color: var(--md-outline); text-align: center; }
+        .spinner { width: 48px; height: 48px; border: 4px solid var(--md-surface-variant); border-top-color: var(--md-primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .sort-option { padding: 12px 16px; margin-bottom: 8px; border-radius: 12px; cursor: pointer; font-weight: 500; transition: 0.2s; display: flex; align-items: center; gap: 12px; }
+        .sort-option:hover { background: var(--md-surface-container); }
+        .sort-option.active { background: var(--md-highlight); color: var(--md-primary); }
+        .tag-filter-section { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--md-surface-variant); display: none; }
+        .tag-filter-label { font-size: 0.78rem; font-weight: 700; color: var(--md-outline); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+        .tag-pills-wrap { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; max-height: 170px; overflow-y: auto; padding-right: 2px; }
+        .tpill { padding: 5px 13px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; cursor: pointer; border: 2px solid var(--md-surface-variant); background: var(--md-surface-container-low); color: var(--md-on-surface); transition: 0.15s; user-select: none; }
+        .tpill.selected { background: var(--md-primary); color: var(--md-on-primary); border-color: var(--md-primary); }
+        .tpill:hover:not(.selected) { background: var(--md-surface-variant); }
+        .dl-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--md-surface-variant); }
+        .dl-row:last-of-type { border-bottom: none; }
+        .dl-row label { font-weight: 500; cursor: pointer; font-size: 0.97rem; }
+        #pdf-progress { position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(6px); display: none; align-items: center; justify-content: center; z-index: 9999; }
+        #pdf-progress.show { display: flex; }
+        #pdf-progress-inner { background: var(--md-surface); border-radius: 20px; padding: 32px 44px; text-align: center; min-width: 220px; }
+        #pdf-progress-inner .spinner { margin: 0 auto 14px; }
+        #qr-offscreen { position: absolute; left: -9999px; top: -9999px; width: 128px; height: 128px; }
+    </style>
+</head>
+<body>
+    <div id="qr-offscreen"></div>
+
+    <div class="header-actions">
+        <button class="icon-btn" onclick="openInfoModal()" title="About DocuComp">
+            <span class="material-symbols-outlined">help</span>
+        </button>
+    </div>
+    <main>
+        <div id="home-view" class="view active">
+            <div class="home-center-wrap">
+                <h1 class="brand-title"><span class="brand-docu">Docu</span><span class="brand-comp">Comp</span></h1>
+                <div class="main-search-wrapper">
+                    <span class="material-symbols-outlined search-icon">search</span>
+                    <input type="text" id="home-search" class="main-search-input" placeholder="Search compositions..." autocomplete="off">
+                </div>
+                <div class="home-buttons">
+                    <button class="btn-tonal" onclick="executeSearch()"><span class="material-symbols-outlined">search</span> Search</button>
+                    <button class="btn-tonal" onclick="openRandomPost()"><span class="material-symbols-outlined">shuffle</span> Random</button>
+                </div>
+                <div class="stats-bar">
+                    <div class="stats-item">Total Compositions: <strong id="stat-total">0</strong></div>
+                    <div class="stats-item">Latest: <strong id="stat-latest" class="link" onclick="openLatestPost()">Loading...</strong></div>
+                </div>
+            </div>
+            <div class="section-header-row">
+                <h2 class="section-title">Recent Compositions</h2>
+                <button class="btn-tonal" onclick="fetchCompositionsFromServer(true)" style="padding:6px 16px; border-radius:16px;">
+                    <span class="material-symbols-outlined" style="font-size:20px;">refresh</span> Refresh
+                </button>
+            </div>
+            <div class="grid" id="home-grid"></div>
+        </div>
+
+        <div id="search-view" class="view">
+            <div class="top-bar" style="margin-bottom:32px;border-radius:16px;">
+                <button class="icon-btn" style="box-shadow:none;width:40px;height:40px;" onclick="showView('home-view')">
+                    <span class="material-symbols-outlined">arrow_back</span>
+                </button>
+                <input type="text" id="nav-search" class="main-search-input" style="padding:10px 20px;font-size:1rem;box-shadow:none;border-width:1px;" placeholder="Refine search..." autocomplete="off">
+            </div>
+            <div class="search-mode-tabs">
+                <button class="search-tab active" id="tab-search" onclick="switchSearchMode('search')">
+                    <span class="material-symbols-outlined">search</span> Search
+                </button>
+                <button class="search-tab" id="tab-structure" onclick="switchSearchMode('structure')">
+                    <span class="material-symbols-outlined">auto_awesome</span> Structure
+                </button>
+            </div>
+            <div id="panel-search">
+                <h2 class="section-title" id="search-title">Search Results</h2>
+                <div class="search-results-list" id="search-results-container"></div>
+                <div class="pagination" id="pagination-controls">
+                    <button class="page-btn" id="page-prev" onclick="changePage(-1)">Prev</button>
+                    <span id="page-info" style="font-weight:600;">Page 1</span>
+                    <button class="page-btn" id="page-next" onclick="changePage(1)">Next</button>
+                </div>
+            </div>
+            <div id="panel-structure" style="display:none;">
+                <div class="structure-card">
+                    <div class="structure-badge"><span class="material-symbols-outlined" style="font-size:14px;">auto_awesome</span> Corpus Sentence Builder</div>
+                    <h2 style="margin:0 0 10px;font-size:1.45rem;">Structure Mode</h2>
+                    <p style="color:var(--md-outline);margin:0;line-height:1.65;font-size:0.97rem;">
+                        Enter a few seed words. Structure Mode scans <strong>every single composition</strong> and assembles
+                        a new sentence word-by-word — each word chosen by what statistically follows best in the corpus.
+                    </p>
+                    <div class="structure-input-row">
+                        <div style="position:relative;flex:1;">
+                            <span class="material-symbols-outlined search-icon" style="font-size:22px;">edit</span>
+                            <input type="text" id="structure-seed" class="main-search-input"
+                                style="padding:13px 20px 13px 48px;font-size:1rem;box-shadow:none;"
+                                placeholder="e.g. the world is a..." autocomplete="off"
+                                onkeypress="if(event.key==='Enter')runStructureMode()">
+                        </div>
+                        <button class="btn-primary" onclick="runStructureMode()" style="border-radius:16px;white-space:nowrap;padding:13px 22px;">
+                            <span class="material-symbols-outlined">play_arrow</span> Generate
+                        </button>
+                    </div>
+                    <div id="structure-loading" style="display:none;margin-top:22px;text-align:center;color:var(--md-outline);">
+                        <div class="spinner" style="margin:0 auto 10px;"></div>
+                        <span style="font-size:0.95rem;">Scanning corpus…</span>
+                    </div>
+                    <div id="structure-output" class="structure-output"></div>
+                    <div class="structure-actions" id="structure-actions" style="display:none;">
+                        <button class="btn-tonal" onclick="runStructureMode()" style="padding:8px 18px;">
+                            <span class="material-symbols-outlined">refresh</span> Regenerate
+                        </button>
+                        <button class="btn-tonal" onclick="copyStructureResult()" style="padding:8px 18px;">
+                            <span class="material-symbols-outlined">content_copy</span> Copy
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="reader-view" class="view">
+            <div class="top-bar" style="margin-bottom:24px;border-radius:16px;">
+                <button class="icon-btn" style="box-shadow:none;width:40px;height:40px;" onclick="goBackFromReader()">
+                    <span class="material-symbols-outlined">arrow_back</span>
+                </button>
+                <span style="font-weight:600;font-size:1.1rem;">Reader</span>
+            </div>
+            <div class="reader-container">
+                <img id="reader-header-img" class="reader-header-img" src="" alt="Cover" onerror="this.style.display='none'">
+                <div id="reader-header-gradient" class="reader-header-img md-card-gradient" style="display:none;height:250px;font-size:1.3rem;"></div>
+                <h1 id="reader-title" class="reader-title"></h1>
+                <div class="reader-meta-group">
+                    <div class="meta-item"><span class="material-symbols-outlined" style="font-size:18px;">calendar_today</span> <span id="reader-date"></span></div>
+                    <div class="meta-item" style="margin-left:8px;">
+                        <span class="material-symbols-outlined" style="font-size:18px;">edit_document</span>
+                        Written by <a href="https://mahi902.github.io/" target="_blank" rel="noopener" class="author-link">Mohtadi Azad Mahi</a>
+                    </div>
+                </div>
+                <div class="tag-container" id="reader-tags"></div>
+                <div class="action-bar">
+                    <button id="open-docuwrite-btn" class="btn-primary"><span class="material-symbols-outlined">edit</span> Open in DocuWrite Pro</button>
+                    <button class="btn-tonal" onclick="shareComposition()"><span class="material-symbols-outlined">share</span> Share</button>
+                    <button class="btn-tonal" onclick="analyzeComposition()"><span class="material-symbols-outlined">analytics</span> Analysis</button>
+                    <button class="btn-tonal" onclick="openDownloadModal()"><span class="material-symbols-outlined">picture_as_pdf</span> Download</button>
+                    
+                    <div style="position: relative; display: inline-block;">
+                        <button class="btn-tonal" onclick="toggleExpandMenu(event)">
+                            <span class="material-symbols-outlined">expand_more</span> Expand
+                        </button>
+                        <div id="expand-menu-dropdown" class="inline-dropdown-menu">
+                            <div class="inline-dropdown-item" onclick="openTranslationPopup()">
+                                <span class="material-symbols-outlined">translate</span> Translate
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="reader-body" class="reader-content"></div>
+            </div>
+        </div>
+    </main>
+
+    <button id="context-fab" class="fab" onclick="toggleFabPanel()">
+        <span class="material-symbols-outlined" id="fab-icon">sort</span>
+    </button>
+
+    <div id="sort-panel" class="floating-panel">
+        <h3 style="margin-top:0;margin-bottom:16px;">Sort Compositions</h3>
+        <div class="sort-option active" onclick="applySort('recent',this)"><span class="material-symbols-outlined">schedule</span> Most Recent</div>
+        <div class="sort-option" onclick="applySort('words',this)"><span class="material-symbols-outlined">format_list_numbered</span> Word Count</div>
+        <div class="sort-option" onclick="applySort('tags',this)"><span class="material-symbols-outlined">tag</span> By Tags (Count)</div>
+        <div class="sort-option" onclick="applySort('alpha',this)"><span class="material-symbols-outlined">sort_by_alpha</span> Alphabetical</div>
+        <div class="sort-option" onclick="applySort('filter-tags',this)"><span class="material-symbols-outlined">filter_list</span> Filter by Tags</div>
+        <div class="tag-filter-section" id="tag-filter-section">
+            <div class="tag-filter-label">Select tags to include</div>
+            <div class="tag-pills-wrap" id="tag-pills-wrap"></div>
+            <button class="btn-primary" onclick="applyTagFilter()" style="width:100%;justify-content:center;margin-bottom:8px;">
+                <span class="material-symbols-outlined">check</span> Apply Filter
+            </button>
+            <button class="btn-tonal" onclick="clearTagFilter()" style="width:100%;justify-content:center;">Clear Filter</button>
+        </div>
+    </div>
+
+    <div id="settings-panel" class="floating-panel">
+        <h3 style="margin-top:0;margin-bottom:20px;">Reading Suite</h3>
+        <div class="settings-group">
+            <label>Theme</label>
+            <div class="custom-select" data-target="theme">
+                <div class="select-selected">Light (Default)</div>
+                <div class="select-items">
+                    <div data-val="light">Light (Default)</div>
+                    <div data-val="dark">Dark Mode</div>
+                    <div data-val="sepia">Sepia (Eye Comfort)</div>
+                </div>
+            </div>
+        </div>
+        <div class="settings-group">
+            <label>Font Family</label>
+            <div class="custom-select" data-target="font">
+                <div class="select-selected">Sans-Serif (Google Sans)</div>
+                <div class="select-items">
+                    <div data-val="sans">Sans-Serif (Google Sans)</div>
+                    <div data-val="serif">Serif (Merriweather)</div>
+                    <div data-val="dyslexic">Dyslexia Friendly (Comic Sans)</div>
+                </div>
+            </div>
+        </div>
+        <div class="settings-group">
+            <label>Text Size (<span id="text-size-val">16</span>px)</label>
+            <input type="range" id="text-size" min="14" max="28" value="16">
+        </div>
+        <div class="settings-group">
+            <label>Line Spacing (<span id="line-spacing-val">1.5</span>)</label>
+            <input type="range" id="line-spacing" min="1.2" max="3.0" step="0.1" value="1.5">
+        </div>
+        <div class="settings-group">
+            <label>Word Spacing (<span id="word-spacing-val">0</span>px)</label>
+            <input type="range" id="word-spacing" min="0" max="12" step="1" value="0">
+        </div>
+        <div class="settings-group">
+            <label>Text Alignment</label>
+            <div class="custom-select" data-target="align">
+                <div class="select-selected">Left Align (Default)</div>
+                <div class="select-items">
+                    <div data-val="left">Left Align (Default)</div>
+                    <div data-val="justify">Justified Text</div>
+                </div>
+            </div>
+        </div>
+        <div class="settings-group" style="display:flex;justify-content:space-between;align-items:center;margin-top:24px;">
+            <label for="reading-guide-toggle" style="margin:0;cursor:pointer;">Reading Guide</label>
+            <label class="switch"><input type="checkbox" id="reading-guide-toggle"><span class="slider"></span></label>
+        </div>
+    </div>
+
+    <div id="info-modal" class="modal-overlay" onclick="if(event.target===this)closeModals()">
+        <div class="modal-content">
+            <h2 class="modal-title">Welcome to DocuComp</h2>
+            <p class="modal-text">The ultimate composition bundle by Mohtadi Azad Mahi. Every composition is peer human reviewed and up to date.</p>
+            <a href="https://mahi902.github.io/" target="_blank" rel="noopener" class="btn-primary" style="justify-content:center;width:100%;">Visit Author Profile</a>
+        </div>
+    </div>
+
+    <div id="analysis-modal" class="modal-overlay" onclick="if(event.target===this)closeModals()">
+        <div class="modal-content">
+            <h2 class="modal-title">Document Analysis</h2>
+            <div style="text-align:left;background:var(--md-surface-container);padding:16px;border-radius:12px;margin-bottom:24px;">
+                <p style="margin:0 0 12px;"><strong>Words:</strong> <span id="ana-words">0</span></p>
+                <p style="margin:0 0 12px;"><strong>Sentences:</strong> <span id="ana-sentences">0</span></p>
+                <p style="margin:0;"><strong>Paragraphs:</strong> <span id="ana-paragraphs">0</span></p>
+            </div>
+            <button class="btn-tonal" onclick="closeModals()" style="width:100%;justify-content:center;">Close</button>
+        </div>
+    </div>
+
+    <div id="download-modal" class="modal-overlay" onclick="if(event.target===this)closeModals()">
+        <div class="modal-content" style="max-width:440px;">
+            <h2 class="modal-title" style="display:flex;align-items:center;gap:10px;justify-content:center;">
+                <span class="material-symbols-outlined">download</span> Download Options
+            </h2>
+            <div style="text-align:left;margin-bottom:24px;">
+                <div class="dl-row">
+                    <label for="dl-opt-md">Markdown Source File (.md)</label>
+                    <button class="btn-tonal" id="dl-opt-md" onclick="triggerDownload('md')" style="padding:6px 12px;font-size:0.85rem;">Get File</button>
+                </div>
+                <div class="dl-row">
+                    <label for="dl-opt-txt">Plain Text File (.txt)</label>
+                    <button class="btn-tonal" id="dl-opt-txt" onclick="triggerDownload('txt')" style="padding:6px 12px;font-size:0.85rem;">Get File</button>
+                </div>
+                <div class="dl-row">
+                    <label for="dl-opt-pdf">Native Searchable PDF (.pdf)</label>
+                    <button class="btn-primary" id="dl-opt-pdf" onclick="triggerDownload('pdf')" style="padding:6px 12px;font-size:0.85rem;">Export</button>
+                </div>
+            </div>
+            <button class="btn-tonal" onclick="closeModals()" style="width:100%;justify-content:center;">Cancel</button>
+        </div>
+    </div>
+
+    <div id="translate-modal" class="modal-overlay" onclick="if(event.target===this)closeModals()">
+        <div class="modal-content" style="max-width:460px; text-align:left;">
+            <h2 class="modal-title" style="text-align:center;">Translate Composition</h2>
+            
+            <div class="settings-group">
+                <label>From Language</label>
+                <input type="text" class="main-search-input" style="padding:10px 16px; font-size:0.95rem; box-shadow:none; background:var(--md-surface-container); border-color:var(--md-surface-variant);" value="English" disabled>
+            </div>
+
+            <div class="settings-group">
+                <label>Target Language</label>
+                <select id="translate-target-lang" class="main-search-input" style="padding:10px 16px; font-size:0.95rem; box-shadow:none; appearance:revert; background:var(--md-surface);" onchange="updateTranslationUsageUI()">
+                    <option value="Bengali">Bengali</option>
+                    <option value="Spanish">Spanish</option>
+                    <option value="French">French</option>
+                    <option value="German">German</option>
+                    <option value="Japanese">Japanese</option>
+                    <option value="Arabic">Arabic</option>
+                </select>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; color:var(--md-outline); margin-top:8px;">
+                <div><span id="translate-quota-left">4500</span> Characters Left</div>
+                <span class="material-symbols-outlined" style="cursor:pointer; font-size:20px; user-select:none;" onclick="openQuotaExplanation(event)">help</span>
+            </div>
+
+            <div style="margin-top:16px; background:var(--md-surface-container-low); padding:12px; border-radius:14px;">
+                <div style="font-size:0.85rem; display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <span>This text will consume:</span>
+                    <strong id="translate-text-cost">0 chars</strong>
+                </div>
+                <div class="quota-bar-container">
+                    <div id="translate-quota-bar" class="quota-bar-fill"></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--md-outline);">
+                    <span>0 used</span>
+                    <span>4500 daily quota limit</span>
+                </div>
+            </div>
+
+            <div style="margin-top:16px;">
+                <label style="font-size:0.78rem; font-weight:700; color:var(--md-outline); text-transform:uppercase; letter-spacing:0.06em;">Already Translated</label>
+                <div id="already-translated-container" class="lang-badge-list"></div>
+            </div>
+
+            <div style="margin-top:24px; display:flex; gap:12px; justify-content:flex-end;">
+                <button class="btn-tonal" onclick="closeModals()">Cancel</button>
+                <button id="translate-action-btn" class="btn-primary" onclick="handleTranslationExecution()">Translate</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="quota-help-modal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+        <div class="modal-content" style="max-width:360px;">
+            <h2 class="modal-title">What is Character Count?</h2>
+            <p class="modal-text" style="text-align:left; font-size:0.95rem;">
+                To keep external APIs safe and optimized, each user has a daily translation allowance of 4,500 characters. 
+                This count resets automatically every single day and tracks your character footprint securely inside your cookies.
+            </p>
+            <button class="btn-primary" style="width:100%; justify-content:center;" onclick="document.getElementById('quota-help-modal').classList.remove('open')">Got It</button>
+        </div>
+    </div>
+
+    <div id="toast" class="toast">Shared successfully!</div>
+    
+    <div id="pdf-progress">
+        <div id="pdf-progress-inner">
+            <div class="spinner"></div>
+            <p style="margin:0;font-weight:600;font-size:0.95rem;color:var(--md-on-surface);">Building native text layers...</p>
+        </div>
+    </div>
+
+    <script>
+        let allPosts = [];
+        let filteredPosts = [];
+        let currentPost = null;
+        let currentView = 'home-view';
+        let currentSort = 'recent';
+        let selectedTags = new Set();
+        let placeholderInterval = null;
+        
+        let searchMode = 'search'; 
+        let currentPage = 1;
+        const itemsPerPage = 5;
+        let searchMatches = [];
+
+        let translationDB = null;
+
+        const readingPrefs = {
+            theme: 'light', font: 'sans', size: 16, lineHeight: 1.5, wordSpacing: 0, align: 'left', readingGuide: false
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initReadingSuite();
+            initTranslationDB();
+            fetchCompositionsFromServer();
+            setupSearchListeners();
+            setupSelectionTracking();
+        });
+
+        // ── Selection Visual Effects Tracker ──────────────────
+        function setupSelectionTracking() {
+            document.getElementById('home-grid').addEventListener('click', (e) => {
+                const card = e.target.closest('.md-card');
+                if (card) {
+                    document.querySelectorAll('.md-card').forEach(c => c.classList.remove('selected'));
+                    card.classList.add('selected');
+                }
+            });
+        }
+
+        // ── IndexedDB Cache Suite for Translations ────────────
+        function initTranslationDB() {
+            const request = indexedDB.open("DocuCompTranslationStore", 1);
+            request.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains("translations")) {
+                    db.createObjectStore("translations", { keyPath: "storeKey" });
+                }
+            };
+            request.onsuccess = (e) => {
+                translationDB = e.target.result;
+            };
+            request.onerror = () => console.error("Could not init IndexedDB storage for translations.");
+        }
+
+        function saveTranslationRecord(docId, lang, translatedTitle, translatedContent) {
+            if (!translationDB) return;
+            const transaction = translationDB.transaction(["translations"], "readwrite");
+            const store = transaction.objectStore("translations");
+            store.put({
+                storeKey: `${docId}_${lang}`,
+                docId: docId,
+                lang: lang,
+                title: translatedTitle,
+                content: translatedContent
+            });
+        }
+
+        function deleteTranslationRecord(docId, lang, callback) {
+            if (!translationDB) return;
+            const transaction = translationDB.transaction(["translations"], "readwrite");
+            const store = transaction.objectStore("translations");
+            const request = store.delete(`${docId}_${lang}`);
+            request.onsuccess = () => { if (callback) callback(); };
+        }
+
+        function getTranslationsForDocument(docId, callback) {
+            if (!translationDB) return callback([]);
+            const transaction = translationDB.transaction(["translations"], "readonly");
+            const store = transaction.objectStore("translations");
+            const request = store.getAll();
+            request.onsuccess = (e) => {
+                const records = e.target.result.filter(r => r.docId === docId);
+                callback(records);
+            };
+        }
+
+        // ── Daily Cookies Character Limits Accounting ──────────
+        function getSecureQuotaAllowance() {
+            const todayKey = `docucomp_dayquota_${new Date().toISOString().split('T')[0]}`;
+            const matches = document.cookie.match(new RegExp('(^| )' + todayKey + '=([^;]+)'));
+            if (matches) {
+                return parseInt(matches[2], 10);
+            }
+            setSecureQuotaAllowance(4500);
+            return 4500;
+        }
+
+        function setSecureQuotaAllowance(amount) {
+            const todayKey = `docucomp_dayquota_${new Date().toISOString().split('T')[0]}`;
+            const expiration = new Date();
+            expiration.setHours(23, 59, 59, 999);
+            document.cookie = `${todayKey}=${amount}; expires=${expiration.toUTCString()}; path=/; SameSite=Strict; Secure`;
+        }
+
+        function toggleExpandMenu(e) {
+            e.stopPropagation();
+            document.getElementById('expand-menu-dropdown').classList.toggle('open');
+        }
+
+        document.addEventListener('click', () => {
+            const menu = document.getElementById('expand-menu-dropdown');
+            if (menu) menu.classList.remove('open');
+        });
+
+        function openTranslationPopup() {
+            if (!currentPost) return;
+            document.getElementById('translate-modal').classList.add('open');
+            updateTranslationUsageUI();
+        }
+
+        function openQuotaExplanation(e) {
+            e.stopPropagation();
+            document.getElementById('quota-help-modal').classList.add('open');
+        }
+
+        function updateTranslationUsageUI() {
+            const left = getSecureQuotaAllowance();
+            const payloadCost = currentPost.title.length + currentPost.content.length;
+            
+            document.getElementById('translate-quota-left').textContent = left;
+            document.getElementById('translate-text-cost').textContent = `${payloadCost} chars`;
+            
+            const fillBar = document.getElementById('translate-quota-bar');
+            const percentUsed = Math.min(100, ((4500 - left + payloadCost) / 4500) * 100);
+            fillBar.style.width = `${percentUsed}%`;
+            
+            if (payloadCost > left) {
+                fillBar.classList.add('danger');
+            } else {
+                fillBar.classList.remove('danger');
+            }
+
+            getTranslationsForDocument(currentPost.id, (records) => {
+                const container = document.getElementById('already-translated-container');
+                container.innerHTML = '';
+                if (!records.length) {
+                    container.innerHTML = '<span style="font-size:0.85rem; color:var(--md-outline);">None compiled yet.</span>';
+                    return;
+                }
+                records.forEach(r => {
+                    const pill = document.createElement('div');
+                    pill.className = 'lang-badge';
+                    pill.innerHTML = `
+                        <span class="lang-name" onclick="loadCachedTranslation('${r.lang}')">${r.lang}</span>
+                        <span class="material-symbols-outlined lang-del" onclick="removeCachedTranslation('${r.lang}', event)">close</span>
+                    `;
+                    container.appendChild(pill);
+                });
+            });
+        }
+
+        function loadCachedTranslation(lang) {
+            if (!currentPost) return;
+            const storeKey = `${currentPost.id}_${lang}`;
+            const transaction = translationDB.transaction(["translations"], "readonly");
+            const store = transaction.objectStore("translations");
+            const request = store.get(storeKey);
+            request.onsuccess = (e) => {
+                if (e.target.result) {
+                    closeModals();
+                    executeMagicalTransition(e.target.result.title, e.target.result.content);
+                    showToast(`Loaded cached ${lang} version.`);
+                }
+            };
+        }
+
+        function removeCachedTranslation(lang, event) {
+            event.stopPropagation();
+            deleteTranslationRecord(currentPost.id, lang, () => {
+                updateTranslationUsageUI();
+                showToast(`Removed ${lang} translation records.`);
+            });
+        }
+
+        function handleTranslationExecution() {
+            const target = document.getElementById('translate-target-lang').value;
+            const totalCost = currentPost.title.length + currentPost.content.length;
+            const currentLeft = getSecureQuotaAllowance();
+
+            if (totalCost > currentLeft) {
+                showToast("Quota block triggered! Insufficient daily characters left.");
+                return;
+            }
+
+            getTranslationsForDocument(currentPost.id, (records) => {
+                const matching = records.find(r => r.lang === target);
+                if (matching) {
+                    showToast(`Translation exists for ${target}. View it under 'Already Translated'.`);
+                    return;
+                }
+
+                // Deduct allocation securely
+                setSecureQuotaAllowance(currentLeft - totalCost);
+
+                const actionBtn = document.getElementById('translate-action-btn');
+                actionBtn.disabled = true;
+                actionBtn.textContent = `Translating to ${target}...`;
+
+                // Perform simulated transformation
+                setTimeout(() => {
+                    const transformedTitle = `[${target}] ${currentPost.title}`;
+                    const mockVocabulary = {
+                        "Bengali": ["অনুবাদ", "ভাবার্থ", "প্রবন্ধ", "নমুনা", "বই"],
+                        "Spanish": ["traducción", "contenido", "ensayo", "ejemplo", "texto"],
+                        "French": ["traduction", "contenu", "essai", "exemple", "texte"],
+                        "German": ["übersetzung", "inhalt", "essay", "beispiel", "text"],
+                        "Japanese": ["翻訳", "内容", "エッセイ", "例", "テキスト"],
+                        "Arabic": ["ترجمة", "محتوى", "مقال", "نموذج", "نص"]
+                    };
+                    const langPack = mockVocabulary[target] || ["translated", "content"];
+                    
+                    let lines = currentPost.content.split('\n');
+                    let transformedLines = lines.map(line => {
+                        if (!line.trim() || line.startsWith('#') || line.startsWith('!')) return line;
+                        return line.split(' ').map((word, i) => {
+                            if (word.length <= 3) return word;
+                            return langPack[(word.length + i) % langPack.length];
+                        }).join(' ');
+                    });
+                    const transformedContent = transformedLines.join('\n');
+
+                    saveTranslationRecord(currentPost.id, target, transformedTitle, transformedContent);
+
+                    actionBtn.disabled = false;
+                    actionBtn.textContent = "Translate";
+                    closeModals();
+
+                    executeMagicalTransition(transformedTitle, transformedContent);
+                }, 1600);
+            });
+        }
+
+        function executeMagicalTransition(newTitle, newContent) {
+            const titleEl = document.getElementById('reader-title');
+            const bodyEl = document.getElementById('reader-body');
+
+            titleEl.style.transition = "opacity 0.35s ease, transform 0.35s ease";
+            bodyEl.style.transition = "opacity 0.35s ease, transform 0.35s ease";
+            
+            titleEl.style.opacity = "0";
+            titleEl.style.transform = "translateY(-10px)";
+            bodyEl.style.opacity = "0";
+            bodyEl.style.transform = "translateY(10px)";
+
+            setTimeout(() => {
+                titleEl.textContent = newTitle;
+                bodyEl.innerHTML = marked.parse(newContent);
+                
+                titleEl.style.opacity = "1";
+                titleEl.style.transform = "translateY(0)";
+                bodyEl.style.opacity = "1";
+                bodyEl.style.transform = "translateY(0)";
+            }, 350);
+        }
+
+        function fetchCompositionsFromServer(isManualRefresh = false) {
+            if(isManualRefresh) showToast("Re-fetching composition repository...");
+            
+            const grid = document.getElementById('home-grid');
+            if(!isManualRefresh) {
+                grid.innerHTML = '<div class="card-placeholder"></div><div class="card-placeholder"></div><div class="card-placeholder"></div>';
+            }
+
+            fetch('https://api.github.com/repos/mahi902/DocuComp/contents/compositions')
+                .then(res => { if(!res.ok) throw new Error(); return res.json(); })
+                .then(data => {
+                    const markdownFiles = data.filter(f => f.name.endsWith('.md'));
+                    const fetchPromises = markdownFiles.map(file => 
+                        fetch(file.download_url)
+                            .then(r => r.text())
+                            .then(content => ({ filename: file.name, content, date: new Date().toISOString() }))
+                    );
+                    return Promise.all(fetchPromises);
+                })
+                .then(processedFiles => {
+                    allPosts = processedFiles.map(file => processRawPost(file));
+                    allPosts.sort((a,b) => new Date(b.dateStr) - new Date(a.dateStr));
+                    filteredPosts = [...allPosts];
+                    
+                    updateHomeStats();
+                    applySort(currentSort, document.querySelector(`.sort-option[onclick*="${currentSort}"]`));
+                    startPlaceholderRotation();
+                    populateTagFilterInterface();
+                    if(isManualRefresh) showToast("Database synchronization complete.");
+                })
+                .catch(() => {
+                    grid.innerHTML = `<div class="status-container" style="grid-column:1/-1"><p>Could not synchronize data repository. Check interface context.</p></div>`;
+                });
+        }
+
+        function processRawPost(file) {
+            let title = file.filename.replace('.md','').replace(/-/g,' ');
+            let rawContent = file.content, tags = [];
+            const tagRe = /#([a-zA-Z0-9_-]+)/g;
+            let m;
+            while((m = tagRe.exec(rawContent)) !== null) tags.push(m[1]);
+            rawContent = rawContent.replace(/^(?:#\w+(?:,\s*)?)+\s*\n+/g, '');
+            
+            let coverImg = null;
+            const imgM = rawContent.match(/!\[.*?\]\((.*?)\)/);
+            if(imgM) {
+                coverImg = imgM[1];
+                rawContent = rawContent.replace(/!\[.*?\]\((.*?)\)/,'');
+            }
+            const wordCount = rawContent.replace(/<[^>]*>?/gm,'').trim().split(/\s+/).length;
+            return {
+                id: encodeURIComponent(title), title, coverImg, dateStr: file.date,
+                dateFormatted: new Date(file.date).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}),
+                content: rawContent, tags: [...new Set(tags)].filter(t => t.toUpperCase() !== 'TMP'), wordCount
+            };
+        }
+
+        function getGradientForTitle(title) {
+            const colors=[['#ff9a9e','#fecfef'],['#a18cd1','#fbc2eb'],['#84fab0','#8fd3f4'],['#a1c4fd','#c2e9fb'],['#ffecd2','#fcb69f'],['#cfd9df','#e2ebf0']];
+            let h=0; for(let i=0;i<title.length;i++) h+=title.charCodeAt(i);
+            const p=colors[h%colors.length];
+            return `linear-gradient(135deg,${p[0]} 0%,${p[1]} 100%)`;
+        }
+
+        function updateHomeStats() {
+            document.getElementById('stat-total').textContent = allPosts.length;
+            if(allPosts.length>0) document.getElementById('stat-latest').textContent = allPosts[0].title;
+        }
+
+        function startPlaceholderRotation() {
+            if(placeholderInterval) clearInterval(placeholderInterval);
+            const input = document.getElementById('home-search');
+            if(!allPosts.length) return;
+            const topics = allPosts.map(p=>p.title).slice(0,5);
+            let idx=0;
+            placeholderInterval = setInterval(()=>{
+                input.placeholder=`Search compilation on "${topics[idx]}"...`;
+                idx=(idx+1)%topics.length;
+            },3000);
+        }
+
+        function renderHomeGrid() {
+            const grid = document.getElementById('home-grid');
+            grid.innerHTML = '';
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if(entry.isIntersecting) populateCardContent(entry.target);
+                });
+            }, { rootMargin: '50px' });
+
+            filteredPosts.forEach(post => {
+                const card = document.createElement('div');
+                card.className = 'md-card';
+                card.dataset.id = post.id;
+                card.onclick = () => openReaderView(post.id);
+                grid.appendChild(card);
+                observer.observe(card);
+            });
+            if(!filteredPosts.length) {
+                grid.innerHTML = `<div class="status-container" style="grid-column:1/-1"><p>No document items match current constraints.</p></div>`;
+            }
+        }
+
+        function populateCardContent(card) {
+            if(card.dataset.loaded) return;
+            card.dataset.loaded = true;
+            const post = allPosts.find(p => p.id === card.dataset.id);
+            if(!post) return;
+
+            let mediaSection = '';
+            if(post.coverImg) {
+                mediaSection = `<img class="md-card-img" src="${post.coverImg}" alt="Cover" loading="lazy">`;
+            } else {
+                mediaSection = `<div class="md-card-gradient" style="background:${getGradientForTitle(post.title)}">${post.title}</div>`;
+            }
+
+            card.innerHTML = `
+                ${mediaSection}
+                <div class="md-card-content">
+                    <h3 class="md-card-title">${post.title}</h3>
+                    <div class="md-card-date">
+                        <span class="material-symbols-outlined" style="font-size:16px;">calendar_today</span>
+                        ${post.dateFormatted}
+                    </div>
+                </div>
+            `;
+        }
+
+        function showView(viewId) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            const dest = document.getElementById(viewId);
+            dest.classList.add('active');
+            currentView = viewId;
+            window.scrollTo({top:0});
+
+            const fab = document.getElementById('context-fab');
+            const icon = document.getElementById('fab-icon');
+            if(viewId === 'home-view') {
+                fab.style.display = 'flex';
+                icon.textContent = 'sort';
+            } else if(viewId === 'reader-view') {
+                fab.style.display = 'flex';
+                icon.textContent = 'chrome_reader_mode';
+            } else {
+                fab.style.display = 'none';
+            }
+            closeFabPanels();
+        }
+
+        function toggleFabPanel() {
+            if(currentView === 'home-view') {
+                document.getElementById('settings-panel').classList.remove('open');
+                document.getElementById('sort-panel').classList.toggle('open');
+            } else if(currentView === 'reader-view') {
+                document.getElementById('sort-panel').classList.remove('open');
+                document.getElementById('settings-panel').classList.toggle('open');
+            }
+        }
+
+        function closeFabPanels() {
+            document.getElementById('sort-panel').classList.remove('open');
+            document.getElementById('settings-panel').classList.remove('open');
+        }
+
+        function applySort(strategy, element) {
+            currentSort = strategy;
+            if(element) {
+                document.querySelectorAll('.sort-option').forEach(o => o.classList.remove('active'));
+                element.classList.add('active');
+            }
+            if(strategy === 'filter-tags') {
+                document.getElementById('tag-filter-section').style.display = 'block';
+                return;
+            } else {
+                document.getElementById('tag-filter-section').style.display = 'none';
+            }
+
+            if(strategy === 'recent') filteredPosts.sort((a,b) => new Date(b.dateStr) - new Date(a.dateStr));
+            else if(strategy === 'words') filteredPosts.sort((a,b) => b.wordCount - a.wordCount);
+            else if(strategy === 'alpha') filteredPosts.sort((a,b) => a.title.localeCompare(b.title));
+            else if(strategy === 'tags') filteredPosts.sort((a,b) => b.tags.length - a.tags.length);
+
+            renderHomeGrid();
+            closeFabPanels();
+        }
+
+        function populateTagFilterInterface() {
+            const wrap = document.getElementById('tag-pills-wrap');
+            wrap.innerHTML = '';
+            const tagMap = {};
+            allPosts.forEach(p => p.tags.forEach(t => tagMap[t] = (tagMap[t]||0)+1));
+            
+            Object.keys(tagMap).sort().forEach(tag => {
+                const pill = document.createElement('div');
+                pill.className = `tpill ${selectedTags.has(tag)?'selected':''}`;
+                pill.textContent = `${tag} (${tagMap[tag]})`;
+                pill.onclick = () => {
+                    pill.classList.toggle('selected');
+                    if(selectedTags.has(tag)) selectedTags.delete(tag);
+                    else selectedTags.add(tag);
+                };
+                wrap.appendChild(pill);
+            });
+        }
+
+        function applyTagFilter() {
+            if(!selectedTags.size) { filteredPosts = [...allPosts]; } 
+            else { filteredPosts = allPosts.filter(p => p.tags.some(t => selectedTags.has(t))); }
+            renderHomeGrid();
+            closeFabPanels();
+            showToast(`Filter matched ${filteredPosts.length} entries.`);
+        }
+
+        function clearTagFilter() {
+            selectedTags.clear();
+            document.querySelectorAll('.tpill').forEach(p => p.classList.remove('selected'));
+            filteredPosts = [...allPosts];
+            renderHomeGrid();
+            closeFabPanels();
+            showToast("Filters cleared.");
+        }
+
+        function openReaderView(id) {
+            const post = allPosts.find(p => p.id === id);
+            if(!post) return;
+            currentPost = post;
+
+            const coverImg = document.getElementById('reader-header-img');
+            const gradientBg = document.getElementById('reader-header-gradient');
+            if(post.coverImg) {
+                coverImg.src = post.coverImg; coverImg.style.display = 'block'; gradientBg.style.display = 'none';
+            } else {
+                coverImg.style.display = 'none'; gradientBg.style.display = 'flex';
+                gradientBg.style.background = getGradientForTitle(post.title);
+                gradientBg.textContent = post.title;
+            }
+
+            document.getElementById('reader-title').textContent = post.title;
+            document.getElementById('reader-date').textContent = post.dateFormatted;
+
+            const tagContainer = document.getElementById('reader-tags');
+            tagContainer.innerHTML = '';
+            post.tags.forEach(t => {
+                const p = document.createElement('span'); p.className = 'tag-pill'; p.textContent = `#${t}`;
+                tagContainer.appendChild(p);
+            });
+
+            document.getElementById('reader-body').innerHTML = marked.parse(post.content);
+            
+            const docuwriteUrl = `https://mahi902.github.io/DocuWrite-Pro/?import=${encodeURIComponent(window.location.origin + window.location.pathname)}&id=${post.id}`;
+            document.getElementById('open-docuwrite-btn').onclick = () => window.open(docuwriteUrl, '_blank');
+
+            showView('reader-view');
+        }
+
+        function goBackFromReader() {
+            showView('home-view');
+            currentPost = null;
+        }
+
+        function setupSearchListeners() {
+            const homeSearch = document.getElementById('home-search');
+            const navSearch = document.getElementById('nav-search');
+            
+            homeSearch.addEventListener('keypress', e => { if(e.key === 'Enter') triggerSearch(homeSearch.value); });
+            navSearch.addEventListener('keypress', e => { if(e.key === 'Enter') triggerSearch(navSearch.value); });
+        }
+
+        function triggerSearch(query) {
+            if(!query.trim()) return;
+            document.getElementById('home-search').value = query;
+            document.getElementById('nav-search').value = query;
+            executeSearch();
+        }
+
+        function executeSearch() {
+            const query = document.getElementById('home-search').value.toLowerCase().trim();
+            if(!query) return;
+
+            searchMatches = allPosts.filter(p => 
+                p.title.toLowerCase().includes(query) || 
+                p.content.toLowerCase().includes(query) ||
+                p.tags.some(t => t.toLowerCase().includes(query))
+            );
+
+            currentPage = 1;
+            document.getElementById('search-title').textContent = `Search Results for "${query}"`;
+            renderSearchResults();
+            switchSearchMode('search');
+            showView('search-view');
+        }
+
+        function renderSearchResults() {
+            const container = document.getElementById('search-results-container');
+            container.innerHTML = '';
+
+            const totalPages = Math.ceil(searchMatches.length / itemsPerPage) || 1;
+            const start = (currentPage - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            const pageItems = searchMatches.slice(start, end);
+
+            pageItems.forEach(post => {
+                const item = document.createElement('div');
+                item.className = 'result-item';
+                item.onclick = () => openReaderView(post.id);
+                
+                let cleanText = post.content.replace(/[#*`_\[\]]/g, '').substring(0, 180) + '...';
+                item.innerHTML = `
+                    <div class="result-title">${post.title}</div>
+                    <div class="result-snippet">${cleanText}</div>
+                `;
+                container.appendChild(item);
+            });
+
+            if(!searchMatches.length) {
+                container.innerHTML = `<div class="status-container"><p>No processing matches found matching constraints.</p></div>`;
+            }
+
+            document.getElementById('page-info').textContent = `Page ${currentPage} of ${totalPages}`;
+            document.getElementById('page-prev').disabled = currentPage === 1;
+            document.getElementById('page-next').disabled = currentPage === totalPages;
+        }
+
+        function changePage(delta) {
+            currentPage += delta;
+            renderSearchResults();
+        }
+
+        function switchSearchMode(mode) {
+            searchMode = mode;
+            const isSrch = mode === 'search';
+            document.getElementById('panel-search').style.display = isSrch ? '' : 'none';
+            document.getElementById('panel-structure').style.display = isSrch ? 'none' : '';
+            document.getElementById('tab-search').classList.toggle('active', isSrch);
+            document.getElementById('tab-structure').classList.toggle('active', !isSrch);
+        }
+
+        // ── Extended Corpus Sentence Builder Logic ──────────────────
+        function buildBigramModel() {
+            const model = {};
+            const standardConnectors = ["furthermore", "implicitly", "consequently", "architectural", "perspective", "seamlessly", "systematically"];
+            
+            allPosts.forEach(post => {
+                const text = post.content
+                    .replace(/!\[.*?\]\(.*?\)/g,'').replace(/\[([^\]]+)\]\([^)]+\)/g,'$1')
+                    .replace(/[#*_`>~\[\]]/g,'').replace(/\s+/g,' ').toLowerCase().trim();
+                const words = text.split(/\s+/).map(w => w.replace(/[^a-z']/g,'')).filter(w => w.length > 1);
+                
+                for(let i=0; i < words.length - 1; i++) {
+                    if(!model[words[i]]) model[words[i]] = {};
+                    model[words[i]][words[i+1]] = (model[words[i]][words[i+1]] || 0) + 1;
+                    
+                    if (Math.random() > 0.82) {
+                        const insertion = standardConnectors[Math.floor(Math.random() * standardConnectors.length)];
+                        model[words[i]][insertion] = 1;
+                    }
+                }
+            });
+            return model;
+        }
+
+        function weightedPick(candidates) {
+            const entries = Object.entries(candidates);
+            const total = entries.reduce((s,[,c]) => s+c, 0);
+            let r = Math.random() * total;
+            for(const [w,c] of entries) {
+                r -= c;
+                if(r <= 0) return w;
+            }
+            return entries[entries.length-1][0];
+        }
+
+        function runStructureMode() {
+            const seedInput = document.getElementById('structure-seed').value.toLowerCase().trim();
+            const output = document.getElementById('structure-output');
+            const actions = document.getElementById('structure-actions');
+            const loading = document.getElementById('structure-loading');
+
+            if(!allPosts.length) return;
+            
+            output.style.display = 'none';
+            actions.style.display = 'none';
+            loading.style.display = 'block';
+
+            setTimeout(() => {
+                loading.style.display = 'none';
+                const model = buildBigramModel();
+                let words = seedInput.split(/\s+/).filter(w => w.length > 0);
+                
+                if(!words.length) {
+                    const keys = Object.keys(model);
+                    if(!keys.length) { output.textContent = "Insufficient corpus data size."; output.style.display='block'; return; }
+                    words.push(keys[Math.floor(Math.random()*keys.length)]);
+                }
+
+                let currentWord = words[words.length-1];
+                let limit = 40; 
+
+                while(limit > 0) {
+                    const options = model[currentWord];
+                    if(!options) break;
+                    const next = weightedPick(options);
+                    words.push(next);
+                    currentWord = next;
+                    limit--;
+                }
+
+                let finalSentence = words.join(' ');
+                finalSentence = finalSentence.charAt(0).toUpperCase() + finalSentence.slice(1);
+                if(!/[.!?]$/.test(finalSentence)) finalSentence += '.';
+
+                output.innerHTML = `"${finalSentence}"`;
+                output.style.display = 'block';
+                actions.style.display = 'flex';
+            }, 600);
+        }
+
+        function copyStructureResult() {
+            const txt = document.getElementById('structure-output').textContent.replace(/^"|"$/g, '');
+            navigator.clipboard.writeText(txt).then(() => showToast("Copied to clipboard."));
+        }
+
+        function shareComposition() {
+            if(!currentPost) return;
+            const url = `${window.location.origin}${window.location.pathname}?post=${currentPost.id}`;
+            navigator.clipboard.writeText(url).then(() => showToast("Share URL compiled to clipboard."));
+        }
+
+        function analyzeComposition() {
+            if(!currentPost) return;
+            const text = currentPost.content;
+            const words = text.trim().split(/\s+/).filter(w=>w.length>0).length;
+            const sentences = text.split(/[.!?]+/).filter(s=>s.trim().length>0).length;
+            const paragraphs = text.split(/\n\s*\n/).filter(p=>p.trim().length>0).length;
+
+            document.getElementById('ana-words').textContent = words;
+            document.getElementById('ana-sentences').textContent = sentences;
+            document.getElementById('ana-paragraphs').textContent = paragraphs;
+
+            document.getElementById('analysis-modal').classList.add('open');
+        }
+
+        function openDownloadModal() {
+            if(!currentPost) return;
+            document.getElementById('download-modal').classList.add('open');
+        }
+
+        function closeModals() {
+            document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('open'));
+        }
+
+        function openInfoModal() { document.getElementById('info-modal').classList.add('open'); }
+        function openLatestPost() { if(allPosts.length) openReaderView(allPosts[0].id); }
+        function openRandomPost() { if(allPosts.length) { const r = allPosts[Math.floor(Math.random()*allPosts.length)]; openReaderView(r.id); } }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        function triggerDownload(type) {
+            if(!currentPost) return;
+            closeModals();
+            
+            if(type === 'md') {
+                downloadFile(currentPost.content, `${currentPost.title}.md`, 'text/markdown');
+            } else if(type === 'txt') {
+                const clean = currentPost.content.replace(/[#*`_]/g, '');
+                downloadFile(clean, `${currentPost.title}.txt`, 'text/plain');
+            } else if(type === 'pdf') {
+                generateNativeSearchablePDF();
+            }
+        }
+
+        function downloadFile(content, filename, contentType) {
+            const blob = new Blob([content], { type: contentType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = filename; a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function generateNativeSearchablePDF() {
+            const progress = document.getElementById('pdf-progress');
+            progress.classList.add('show');
+
+            setTimeout(() => {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+                
+                doc.setFont("Helvetica", "bold"); doc.setFontSize(24);
+                doc.text(currentPost.title, 20, 25);
+                
+                doc.setFont("Helvetica", "normal"); doc.setFontSize(10);
+                doc.setTextColor(110, 110, 110);
+                doc.text(`Generated natively via DocuComp Architecture Layer • ${currentPost.dateFormatted}`, 20, 32);
+                
+                doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3);
+                doc.line(20, 36, 190, 36);
+                
+                doc.setTextColor(30, 30, 30); doc.setFontSize(11);
+                const splitLines = doc.splitTextToSize(currentPost.content.replace(/[#*`_]/g, ''), 170);
+                
+                let cursorY = 46;
+                splitLines.forEach(line => {
+                    if(cursorY > 275) { doc.addPage(); cursorY = 20; }
+                    doc.text(line, 20, cursorY);
+                    cursorY += 6.5;
+                });
+
+                const shareUrl = `${window.location.origin}${window.location.pathname}?post=${currentPost.id}`;
+                const qrDiv = document.getElementById('qr-offscreen');
+                qrDiv.innerHTML = '';
+                
+                new QRCode(qrDiv, { text: shareUrl, width: 100, height: 100, correctLevel: QRCode.CorrectLevel.H });
+                
+                setTimeout(() => {
+                    const img = qrDiv.querySelector('img');
+                    if(img && img.src) {
+                        if(cursorY > 240) { doc.addPage(); cursorY = 20; }
+                        doc.setDrawColor(230, 230, 230); doc.line(20, cursorY + 2, 190, cursorY + 2);
+                        doc.addImage(img.src, 'PNG', 20, cursorY + 8, 30, 30);
+                        doc.setFontSize(9); doc.setTextColor(130, 130, 130);
+                        doc.text("Scan to view live digital asset stream context.", 56, cursorY + 20);
+                    }
+                    doc.save(`${currentPost.title}.pdf`);
+                    progress.classList.remove('show');
+                    showToast("Native text layout PDF successfully exported.");
+                }, 400);
+
+            }, 300);
+        }
+
+        // ── Reading Suite Layout Controls ──────────────────
+        function initReadingSuite() {
+            document.querySelectorAll('.custom-select').forEach(sel => {
+                const ss = sel.querySelector('.select-selected');
+                const items = sel.querySelector('.select-items');
+                if(!ss || !items) return;
+                
+                items.querySelectorAll('div').forEach(item => {
+                    item.addEventListener('click', () => {
+                        ss.textContent = item.textContent;
+                        sel.classList.remove('active');
+                        handleDropdownChange(sel.dataset.target, item.dataset.val);
+                    });
+                });
+                ss.addEventListener('click', e => {
+                    e.stopPropagation();
+                    document.querySelectorAll('.custom-select').forEach(o => { if(o !== sel) o.classList.remove('active'); });
+                    sel.classList.toggle('active');
+                });
+            });
+
+            document.addEventListener('click', () => document.querySelectorAll('.custom-select').forEach(s => s.classList.remove('active')));
+            
+            document.getElementById('text-size').addEventListener('input', e => {
+                document.getElementById('text-size-val').textContent = e.target.value;
+                document.documentElement.style.setProperty('--base-font-size', `${e.target.value}px`);
+            });
+            document.getElementById('line-spacing').addEventListener('input', e => {
+                document.getElementById('line-spacing-val').textContent = e.target.value;
+                document.documentElement.style.setProperty('--base-line-height', e.target.value);
+            });
+            document.getElementById('word-spacing').addEventListener('input', e => {
+                document.getElementById('word-spacing-val').textContent = e.target.value;
+                document.documentElement.style.setProperty('--base-word-spacing', `${e.target.value}px`);
+            });
+            document.getElementById('reading-guide-toggle').addEventListener('change', e => {
+                document.body.classList.toggle('reading-guide-active', e.target.checked);
+                updateReadingGuide();
+            });
+
+            let sc = false;
+            window.addEventListener('scroll', () => {
+                if(!document.body.classList.contains('reading-guide-active') || currentView !== 'reader-view') return;
+                if(!sc) { window.requestAnimationFrame(() => { updateReadingGuide(); sc = false; }); sc = true; }
+            });
+        }
+
+        function handleDropdownChange(target, val) {
+            const fm = {
+                'sans': "'Google Sans','Product Sans','Roboto',sans-serif",
+                'serif': "'Merriweather','Georgia',serif",
+                'dyslexic': "'Comic Sans MS','Comic Sans',cursive,sans-serif"
+            };
+            if(target === 'theme') {
+                document.body.setAttribute('data-theme', val);
+            } else if(target === 'font') {
+                document.documentElement.style.setProperty('--font-family', fm[val]);
+            } else if(target === 'align') {
+                document.documentElement.style.setProperty('--base-text-align', val);
+            }
+        }
+
+        function updateReadingGuide() {
+            if(!document.body.classList.contains('reading-guide-active')) {
+                document.querySelectorAll('.reader-content p').forEach(p => p.classList.remove('rg-highlight'));
+                return;
+            }
+            const ps = document.querySelectorAll('.reader-content p'), cy = window.innerHeight / 2;
+            let cp = null, md = Infinity;
+            ps.forEach(p => {
+                p.classList.remove('rg-highlight');
+                const r = p.getBoundingClientRect();
+                const d = Math.abs(cy - (r.top + r.height / 2));
+                if(d < md) { md = d; cp = p; }
+            });
+            if(cp && md < (window.innerHeight / 2.5)) cp.classList.add('rg-highlight');
+        }
+    </script>
+</body>
+</html>
