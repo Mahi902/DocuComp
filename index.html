@@ -33,6 +33,7 @@
             --base-text-align: left;
             --shape-corner-card: 24px;
             --shape-corner-btn: 28px;
+            --md-surface-rgb: 251,253,254;
         }
         body[data-theme="dark"] {
             --md-primary: #a8c7fa; --md-secondary: #ff8a80; --md-on-primary: #062e6f;
@@ -40,6 +41,7 @@
             --md-surface-container-low: #191c20; --md-surface-container: #202429;
             --md-outline: #8c9199; --md-surface-variant: #44474e;
             --md-highlight: rgba(168,199,250,0.15); --md-shadow: rgba(0,0,0,0.5);
+            --md-surface-rgb: 17,19,21;
         }
         body[data-theme="sepia"] {
             --md-primary: #5d4037; --md-secondary: #bf360c; --md-on-primary: #ffffff;
@@ -47,6 +49,7 @@
             --md-surface-container-low: #e8dfc7; --md-surface-container: #dccfb3;
             --md-outline: #8d6e63; --md-surface-variant: #d7ccc8;
             --md-highlight: rgba(93,64,55,0.1); --md-shadow: rgba(93,64,55,0.15);
+            --md-surface-rgb: 244,236,216;
         }
         * { box-sizing: border-box; }
         body {
@@ -61,10 +64,14 @@
         .view.active { display: block; animation: fadeSlideUp 0.4s ease forwards; }
         @keyframes fadeSlideUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
         .top-bar {
-            position: sticky; top: 0; background-color: rgba(var(--md-surface),0.95);
-            backdrop-filter: blur(8px); padding: 16px 24px; display: flex; align-items: center;
+            position: sticky; top: 0; background-color: rgba(var(--md-surface-rgb),0.72);
+            backdrop-filter: blur(14px) saturate(1.5); -webkit-backdrop-filter: blur(14px) saturate(1.5);
+            padding: 16px 24px; display: flex; align-items: center;
             gap: 16px; box-shadow: 0 1px 3px var(--md-shadow); z-index: 100;
         }
+        /* Glass effect: reader text scrolling underneath the sticky bar is now genuinely
+           blurred/frosted (not just boxed elements) since the bar has a real translucent tint. */
+        .reader-container { position: relative; z-index: 1; }
         .header-actions { position: absolute; top: 24px; right: 24px; z-index: 50; }
         .icon-btn {
             background: var(--md-surface-container); border: none; color: var(--md-on-surface);
@@ -221,8 +228,113 @@
         #pdf-progress.show { display: flex; }
         #pdf-progress-inner { background: var(--md-surface); border-radius: 20px; padding: 32px 44px; text-align: center; min-width: 220px; }
         #pdf-progress-inner .spinner { margin: 0 auto 14px; }
+        /* ── Translation limit: email capture UI ──────────────────────────── */
+        .email-input-wrap { position: relative; display: flex; align-items: center; }
+        .email-input-wrap .email-input-icon { position: absolute; left: 14px; color: var(--md-outline); font-size: 20px; pointer-events: none; }
+        #translate-email-input { width: 100%; box-sizing: border-box; padding: 12px 14px 12px 44px; border-radius: 16px; border: 2px solid var(--md-surface-variant); background: var(--md-surface-container-low); color: var(--md-on-surface); font-family: var(--font-family); font-size: 0.95rem; outline: none; transition: 0.2s; }
+        #translate-email-input:focus { border-color: var(--md-primary); background: var(--md-surface); box-shadow: 0 0 0 4px var(--md-highlight); }
+        #translate-email-input::placeholder { color: var(--md-outline); opacity: 0.75; }
+        .email-saved-chip { display: flex; align-items: center; gap: 10px; background: var(--md-highlight); border: 1px solid var(--md-primary); border-radius: 16px; padding: 11px 12px 11px 16px; margin-top: 2px; }
+        .email-saved-text { flex: 1; font-weight: 600; font-size: 0.9rem; color: var(--md-on-surface); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .email-edit-btn { width: 34px; height: 34px; border-radius: 50%; border: none; background: var(--md-surface); color: var(--md-primary); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: 0.2s; }
+        .email-edit-btn:hover { background: var(--md-primary); color: var(--md-on-primary); }
+        .email-edit-btn .material-symbols-outlined { font-size: 18px; }
+
+        /* ── Home screen info modal: About / Settings tabs ───────────────────── */
+        .info-tabs { display: flex; gap: 8px; margin-bottom: 20px; background: var(--md-surface-container-low); padding: 4px; border-radius: 14px; }
+        .info-tab-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 12px; border: none; border-radius: 10px; background: transparent; color: var(--md-outline); font-family: var(--font-family); font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: 0.2s; }
+        .info-tab-btn:hover { color: var(--md-on-surface); }
+        .info-tab-btn.active { background: var(--md-surface); color: var(--md-primary); box-shadow: 0 2px 6px var(--md-shadow); }
+        .info-tab-btn .material-symbols-outlined { font-size: 18px; }
+        #info-settings-content { max-height: 60vh; overflow-y: auto; }
+        #info-settings-slot #settings-panel-inner h3 { display: none; }
+        #info-settings-slot .settings-group { margin-top: 18px; }
+        #info-settings-slot .settings-group:first-child { margin-top: 0; }
+
         /* Hidden QR container used for PDF generation */
         #qr-offscreen { position: absolute; left: -9999px; top: -9999px; width: 128px; height: 128px; }
+
+        /* ── Section title row + Refresh ─────────────────────────────────── */
+        .section-title-row { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid var(--md-surface-variant); padding-bottom: 8px; margin-bottom: 24px; }
+        .section-title-row .section-title { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
+        .icon-btn-small { width: 40px; height: 40px; border-radius: 50%; background: var(--md-surface-container); border: none; color: var(--md-on-surface); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 5px var(--md-shadow); transition: 0.2s; flex-shrink: 0; }
+        .icon-btn-small:hover { background: var(--md-surface-variant); }
+        .icon-btn-small.spinning .material-symbols-outlined { animation: spin 0.7s linear infinite; }
+
+        /* ── Selected card gradient shift ────────────────────────────────── */
+        .md-card-gradient { background-size: 230% 230% !important; background-position: 0% 50%; transition: background-position 0.5s ease, transform 0.2s ease; }
+        .md-card.selected { position: relative; transform: scale(0.97) !important; box-shadow: 0 0 0 3px var(--md-primary), 0 12px 24px var(--md-shadow) !important; }
+        .md-card.selected:hover { transform: scale(0.97) !important; }
+        .md-card.selected .md-card-gradient { animation: gradientShift 1s ease-in-out infinite; }
+        .md-card.selected::after {
+            content: '✓'; position: absolute; top: 12px; right: 12px; width: 30px; height: 30px;
+            border-radius: 50%; background: var(--md-primary); color: var(--md-on-primary);
+            display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 900;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.35); z-index: 5;
+        }
+        @keyframes gradientShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+
+        /* ── Reader action bar: single scrollable line, Expand reveals extra buttons inline ── */
+        .action-bar { display: flex; gap: 12px; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; margin-bottom: 32px; padding-bottom: 4px; scrollbar-width: none; -ms-overflow-style: none; }
+        .action-bar::-webkit-scrollbar { display: none; }
+        .action-bar .btn-primary, .action-bar .btn-tonal { flex-shrink: 0; white-space: nowrap; }
+        .expand-extra { display: none; }
+
+        /* ── Full-screen language picker ──────────────────────────────────── */
+        .lang-picker-trigger { width: 100%; padding: 10px 14px; border-radius: 12px; border: 2px solid var(--md-surface-variant); background: var(--md-surface); color: var(--md-on-surface); font-family: var(--font-family); font-weight: 600; font-size: 0.95rem; cursor: pointer; outline: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .lang-picker-trigger:hover { border-color: var(--md-primary); }
+        .lang-picker-screen { position: fixed; inset: 0; background: var(--md-surface); z-index: 2000; display: flex; flex-direction: column; transform: translateY(100%); transition: transform 0.32s cubic-bezier(.2,.9,.3,1); }
+        .lang-picker-screen.open { transform: translateY(0); }
+        .lang-picker-header { display: flex; align-items: center; gap: 12px; padding: 16px; border-bottom: 1px solid var(--md-surface-variant); flex-shrink: 0; }
+        .lang-picker-header button { width: 42px; height: 42px; border-radius: 50%; border: none; background: var(--md-surface-container); color: var(--md-on-surface); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+        .lang-picker-header input { flex: 1; border: 2px solid var(--md-surface-variant); border-radius: 24px; padding: 10px 18px; font-family: var(--font-family); font-size: 1rem; background: var(--md-surface-container-low); color: var(--md-on-surface); outline: none; }
+        .lang-picker-header input:focus { border-color: var(--md-primary); }
+        .lang-picker-list { flex: 1; overflow-y: auto; padding: 8px 12px 40px; }
+        .lang-picker-item { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 15px 14px; border-radius: 14px; border: none; background: transparent; color: var(--md-on-surface); font-family: var(--font-family); font-size: 1rem; font-weight: 500; cursor: pointer; text-align: left; transition: 0.15s; }
+        .lang-picker-item:hover { background: var(--md-surface-container); }
+        .lang-picker-item.active { background: var(--md-highlight); color: var(--md-primary); font-weight: 700; }
+        .lang-picker-item .material-symbols-outlined { color: var(--md-primary); }
+        .lang-picker-empty { text-align: center; color: var(--md-outline); padding: 40px 20px; }
+
+        /* ── Translate modal ─────────────────────────────────────────────── */
+        .translate-modal-content { max-width: 460px; text-align: left; }
+        .translate-modal-content .modal-title { text-align: center; }
+        .lang-row { display: flex; gap: 12px; margin-bottom: 18px; }
+        .lang-box { flex: 1; }
+        .lang-box label { font-size: 0.75rem; font-weight: 700; color: var(--md-outline); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px; }
+        .lang-locked { background: var(--md-surface-container); border-radius: 12px; padding: 10px 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: var(--md-outline); }
+        .lang-locked .material-symbols-outlined { font-size: 18px; }
+        select.mini-select { width: 100%; padding: 10px 14px; border-radius: 12px; border: 2px solid var(--md-surface-variant); background: var(--md-surface); color: var(--md-on-surface); font-family: var(--font-family); font-weight: 600; font-size: 0.95rem; cursor: pointer; outline: none; }
+        select.mini-select:focus { border-color: var(--md-primary); }
+        .chars-left-row { display: flex; align-items: center; justify-content: space-between; margin: 6px 0 10px; }
+        .cl-text { font-weight: 700; font-size: 0.95rem; }
+        .info-q { width: 20px; height: 20px; border-radius: 50%; background: var(--md-surface-variant); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; font-weight: 700; color: var(--md-outline); user-select: none; }
+        .info-q:hover { background: var(--md-primary); color: var(--md-on-primary); }
+        .usage-bar-wrap { height: 10px; border-radius: 8px; background: var(--md-surface-variant); overflow: hidden; margin-bottom: 6px; }
+        .usage-bar-fill { height: 100%; background: var(--md-primary); border-radius: 8px; transition: width 0.4s ease, background 0.3s ease; }
+        .usage-bar-label { font-size: 0.78rem; color: var(--md-outline); margin-bottom: 18px; }
+        .already-translated-section { margin-top: 6px; border-top: 1px solid var(--md-surface-variant); padding-top: 14px; }
+        .at-label { font-size: 0.75rem; font-weight: 700; color: var(--md-outline); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+        .at-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 12px; background: var(--md-surface-container-low); margin-bottom: 8px; cursor: pointer; transition: 0.15s; }
+        .at-item:hover { background: var(--md-surface-container); }
+        .at-item .at-name { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.92rem; }
+        .at-item .at-del { color: var(--md-secondary); cursor: pointer; display: flex; align-items: center; padding: 4px; border-radius: 50%; }
+        .at-item .at-del:hover { background: rgba(234,67,53,0.12); }
+        .translate-status { display: none; text-align: center; padding: 18px 0 6px; }
+        .translate-status .spinner { margin: 0 auto 12px; width: 36px; height: 36px; }
+        .translation-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--md-highlight); color: var(--md-primary); padding: 5px 14px; border-radius: 16px; font-size: 0.82rem; font-weight: 700; margin-bottom: 18px; cursor: pointer; border: none; font-family: var(--font-family); }
+        .translation-badge .material-symbols-outlined { font-size: 16px; }
+
+        /* Reader "magic" transition when swapping translations */
+        .reader-fading-out { animation: readerFadeOut 0.35s ease forwards; }
+        .reader-fading-in { animation: readerFadeIn 0.55s ease forwards; }
+        @keyframes readerFadeOut { to { opacity: 0; filter: blur(8px); transform: translateY(-8px); } }
+        @keyframes readerFadeIn { from { opacity: 0; filter: blur(8px); transform: translateY(8px); } to { opacity: 1; filter: blur(0); transform: translateY(0); } }
+
+        /* ── Corpus sentence builder extra options ───────────────────────── */
+        .structure-options-row { display: flex; gap: 14px; margin-top: 16px; flex-wrap: wrap; }
+        .mini-select-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 140px; }
+        .mini-select-group label { font-size: 0.72rem; font-weight: 700; color: var(--md-outline); text-transform: uppercase; letter-spacing: 0.05em; }
     </style>
 </head>
 <body>
@@ -252,7 +364,12 @@
                     <div class="stats-item">Latest: <strong id="stat-latest" class="link" onclick="openLatestPost()">Loading...</strong></div>
                 </div>
             </div>
-            <h2 class="section-title">Recent Compositions</h2>
+            <div class="section-title-row">
+                <h2 class="section-title" style="border-bottom:none;padding-bottom:0;margin-bottom:0;">Recent Compositions</h2>
+                <button class="icon-btn-small" id="refresh-btn" onclick="refreshCompositions()" title="Refresh compositions">
+                    <span class="material-symbols-outlined">refresh</span>
+                </button>
+            </div>
             <div class="grid" id="home-grid"></div>
         </div>
 
@@ -304,6 +421,37 @@
                             <span class="material-symbols-outlined">play_arrow</span> Generate
                         </button>
                     </div>
+                    <div class="structure-options-row">
+                        <div class="mini-select-group">
+                            <label>Length</label>
+                            <select class="mini-select" id="structure-length">
+                                <option value="short">Short (~10 words)</option>
+                                <option value="medium" selected>Medium (~20 words)</option>
+                                <option value="long">Long (~35 words)</option>
+                            </select>
+                        </div>
+                        <div class="mini-select-group">
+                            <label>Variants</label>
+                            <select class="mini-select" id="structure-variants">
+                                <option value="1" selected>1 sentence</option>
+                                <option value="2">2 sentences</option>
+                                <option value="3">3 sentences</option>
+                            </select>
+                        </div>
+                        <div class="mini-select-group">
+                            <label>Corpus Source</label>
+                            <select class="mini-select" id="structure-tag-source">
+                                <option value="all" selected>All compositions</option>
+                            </select>
+                        </div>
+                        <div class="mini-select-group">
+                            <label>Style</label>
+                            <select class="mini-select" id="structure-style">
+                                <option value="normal" selected>Natural flow</option>
+                                <option value="surprising">More surprising</option>
+                            </select>
+                        </div>
+                    </div>
                     <div id="structure-loading" style="display:none;margin-top:22px;text-align:center;color:var(--md-outline);">
                         <div class="spinner" style="margin:0 auto 10px;"></div>
                         <span style="font-size:0.95rem;">Scanning corpus…</span>
@@ -341,12 +489,15 @@
                     </div>
                 </div>
                 <div class="tag-container" id="reader-tags"></div>
-                <div class="action-bar">
+                <div class="action-bar" id="action-bar">
                     <button id="open-docuwrite-btn" class="btn-primary"><span class="material-symbols-outlined">edit</span> Open in DocuWrite Pro</button>
                     <button class="btn-tonal" onclick="shareComposition()"><span class="material-symbols-outlined">share</span> Share</button>
                     <button class="btn-tonal" onclick="analyzeComposition()"><span class="material-symbols-outlined">analytics</span> Analysis</button>
                     <button class="btn-tonal" onclick="openDownloadModal()"><span class="material-symbols-outlined">picture_as_pdf</span> Download</button>
+                    <button class="btn-tonal" id="expand-btn" onclick="expandActionBar()" title="More options"><span class="material-symbols-outlined">unfold_more</span> Expand</button>
+                    <button class="btn-tonal expand-extra" onclick="openTranslateModal()"><span class="material-symbols-outlined">translate</span> Translate</button>
                 </div>
+                <div id="translation-badge-wrap"></div>
                 <div id="reader-body" class="reader-content"></div>
             </div>
         </div>
@@ -377,63 +528,94 @@
 
     <!-- Reading Suite Panel -->
     <div id="settings-panel" class="floating-panel">
-        <h3 style="margin-top:0;margin-bottom:20px;">Reading Suite</h3>
-        <div class="settings-group">
-            <label>Theme</label>
-            <div class="custom-select" data-target="theme">
-                <div class="select-selected">Light (Default)</div>
-                <div class="select-items">
-                    <div data-val="light">Light (Default)</div>
-                    <div data-val="dark">Dark Mode</div>
-                    <div data-val="sepia">Sepia (Eye Comfort)</div>
+        <div id="settings-panel-inner">
+            <h3 style="margin-top:0;margin-bottom:20px;">Reading Suite</h3>
+            <div class="settings-group">
+                <label>Theme</label>
+                <div class="custom-select" data-target="theme">
+                    <div class="select-selected">Light (Default)</div>
+                    <div class="select-items">
+                        <div data-val="light">Light (Default)</div>
+                        <div data-val="dark">Dark Mode</div>
+                        <div data-val="sepia">Sepia (Eye Comfort)</div>
+                    </div>
                 </div>
             </div>
-        </div>
-        <div class="settings-group">
-            <label>Font Family</label>
-            <div class="custom-select" data-target="font">
-                <div class="select-selected">Sans-Serif (Google Sans)</div>
-                <div class="select-items">
-                    <div data-val="sans">Sans-Serif (Google Sans)</div>
-                    <div data-val="serif">Serif (Merriweather)</div>
-                    <div data-val="dyslexic">Dyslexia Friendly (Comic Sans)</div>
+            <div class="settings-group">
+                <label>Font Family</label>
+                <div class="custom-select" data-target="font">
+                    <div class="select-selected">Sans-Serif (Google Sans)</div>
+                    <div class="select-items">
+                        <div data-val="sans">Sans-Serif (Google Sans)</div>
+                        <div data-val="serif">Serif (Merriweather)</div>
+                        <div data-val="dyslexic">Dyslexia Friendly (Comic Sans)</div>
+                    </div>
                 </div>
             </div>
-        </div>
-        <div class="settings-group">
-            <label>Text Size (<span id="text-size-val">16</span>px)</label>
-            <input type="range" id="text-size" min="14" max="28" value="16">
-        </div>
-        <div class="settings-group">
-            <label>Line Spacing (<span id="line-spacing-val">1.5</span>)</label>
-            <input type="range" id="line-spacing" min="1.2" max="3.0" step="0.1" value="1.5">
-        </div>
-        <div class="settings-group">
-            <label>Word Spacing (<span id="word-spacing-val">0</span>px)</label>
-            <input type="range" id="word-spacing" min="0" max="12" step="1" value="0">
-        </div>
-        <div class="settings-group">
-            <label>Text Alignment</label>
-            <div class="custom-select" data-target="align">
-                <div class="select-selected">Left Align (Default)</div>
-                <div class="select-items">
-                    <div data-val="left">Left Align (Default)</div>
-                    <div data-val="justify">Justified Text</div>
+            <div class="settings-group">
+                <label>Text Size (<span id="text-size-val">16</span>px)</label>
+                <input type="range" id="text-size" min="14" max="28" value="16">
+            </div>
+            <div class="settings-group">
+                <label>Line Spacing (<span id="line-spacing-val">1.5</span>)</label>
+                <input type="range" id="line-spacing" min="1.2" max="3.0" step="0.1" value="1.5">
+            </div>
+            <div class="settings-group">
+                <label>Word Spacing (<span id="word-spacing-val">0</span>px)</label>
+                <input type="range" id="word-spacing" min="0" max="12" step="1" value="0">
+            </div>
+            <div class="settings-group">
+                <label>Text Alignment</label>
+                <div class="custom-select" data-target="align">
+                    <div class="select-selected">Left Align (Default)</div>
+                    <div class="select-items">
+                        <div data-val="left">Left Align (Default)</div>
+                        <div data-val="justify">Justified Text</div>
+                    </div>
                 </div>
             </div>
-        </div>
-        <div class="settings-group" style="display:flex;justify-content:space-between;align-items:center;margin-top:24px;">
-            <label for="reading-guide-toggle" style="margin:0;cursor:pointer;">Reading Guide</label>
-            <label class="switch"><input type="checkbox" id="reading-guide-toggle"><span class="slider"></span></label>
+            <div class="settings-group" style="display:flex;justify-content:space-between;align-items:center;margin-top:24px;">
+                <label for="reading-guide-toggle" style="margin:0;cursor:pointer;">Reading Guide</label>
+                <label class="switch"><input type="checkbox" id="reading-guide-toggle"><span class="slider"></span></label>
+            </div>
+            <div class="settings-group" style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;">
+                <label for="translate-limit-toggle" style="margin:0;cursor:pointer;">Increase Translation Limit</label>
+                <label class="switch"><input type="checkbox" id="translate-limit-toggle" onchange="onTranslateLimitToggle()"><span class="slider"></span></label>
+            </div>
+            <div id="translate-email-row" style="display:none;margin-top:14px;">
+                <p style="font-size:0.8rem;color:var(--md-outline);margin:0 0 10px;">Give us your email and your daily translation budget goes from 4,500 to 45,000 characters.</p>
+                <div id="translate-email-input-wrap" class="email-input-wrap">
+                    <span class="material-symbols-outlined email-input-icon">mail</span>
+                    <input type="email" id="translate-email-input" placeholder="you@example.com" oninput="clearEmailError()">
+                </div>
+                <div id="translate-email-error" style="display:none;color:var(--md-secondary);font-size:0.78rem;margin-top:6px;font-weight:600;"></div>
+                <button class="btn-primary" id="translate-email-save-btn" onclick="saveTranslateEmail()" style="width:100%;justify-content:center;margin-top:10px;padding:9px;">
+                    <span class="material-symbols-outlined">check</span> Save Email
+                </button>
+                <div id="translate-email-saved-chip" class="email-saved-chip" style="display:none;">
+                    <span class="material-symbols-outlined" style="color:var(--md-primary);">verified</span>
+                    <span class="email-saved-text" id="translate-email-saved-text"></span>
+                    <button type="button" class="email-edit-btn" onclick="editTranslateEmail()" title="Edit email"><span class="material-symbols-outlined">edit</span></button>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Modals -->
     <div id="info-modal" class="modal-overlay" onclick="if(event.target===this)closeModals()">
-        <div class="modal-content">
-            <h2 class="modal-title">Welcome to DocuComp</h2>
-            <p class="modal-text">The ultimate composition bundle by Mohtadi Azad Mahi. Every composition is peer human reviewed and up to date.</p>
-            <a href="https://mahi902.github.io/" target="_blank" rel="noopener" class="btn-primary" style="justify-content:center;width:100%;">Visit Author Profile</a>
+        <div class="modal-content" style="max-width:420px;">
+            <div class="info-tabs">
+                <button class="info-tab-btn active" data-tab="about" onclick="showInfoTab('about')"><span class="material-symbols-outlined">info</span> About</button>
+                <button class="info-tab-btn" data-tab="settings" onclick="showInfoTab('settings')"><span class="material-symbols-outlined">tune</span> Settings</button>
+            </div>
+            <div id="info-about-content">
+                <h2 class="modal-title">Welcome to DocuComp</h2>
+                <p class="modal-text">The ultimate composition bundle by Mohtadi Azad Mahi. Every composition is peer human reviewed and up to date.</p>
+                <a href="https://mahi902.github.io/" target="_blank" rel="noopener" class="btn-primary" style="justify-content:center;width:100%;">Visit Author Profile</a>
+            </div>
+            <div id="info-settings-content" style="display:none;text-align:left;">
+                <div id="info-settings-slot"></div>
+            </div>
         </div>
     </div>
     <div id="analysis-modal" class="modal-overlay" onclick="if(event.target===this)closeModals()">
@@ -452,16 +634,94 @@
             <h2 class="modal-title" style="display:flex;align-items:center;gap:10px;justify-content:center;">
                 <span class="material-symbols-outlined">picture_as_pdf</span> Download PDF
             </h2>
+            <div id="dl-lang-row" style="display:none;text-align:left;margin-bottom:16px;">
+                <label style="font-size:0.75rem;font-weight:700;color:var(--md-outline);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:6px;">Language</label>
+                <select id="dl-language" class="mini-select" style="width:100%;"></select>
+            </div>
             <div style="text-align:left;background:var(--md-surface-container-low);border-radius:16px;padding:4px 20px;margin-bottom:24px;">
                 <div class="dl-row"><label for="dl-images">Include Images</label><label class="switch"><input type="checkbox" id="dl-images" checked><span class="slider"></span></label></div>
                 <div class="dl-row"><label for="dl-bgcolor">Include Background Color</label><label class="switch"><input type="checkbox" id="dl-bgcolor"><span class="slider"></span></label></div>
                 <div class="dl-row"><label for="dl-pagenums">Page Numbering</label><label class="switch"><input type="checkbox" id="dl-pagenums" checked><span class="slider"></span></label></div>
+                <div class="dl-row"><label for="dl-justify">Justified Text</label><label class="switch"><input type="checkbox" id="dl-justify" checked><span class="slider"></span></label></div>
             </div>
             <button class="btn-primary" onclick="downloadPDF()" style="width:100%;justify-content:center;margin-bottom:10px;">
                 <span class="material-symbols-outlined">download</span> Download PDF
             </button>
             <button class="btn-tonal" onclick="closeModals()" style="width:100%;justify-content:center;">Cancel</button>
         </div>
+    </div>
+
+    <!-- Translate modal -->
+    <div id="translate-modal" class="modal-overlay" onclick="if(event.target===this)closeModals()">
+        <div class="modal-content translate-modal-content">
+            <h2 class="modal-title" style="display:flex;align-items:center;gap:10px;justify-content:center;">
+                <span class="material-symbols-outlined">translate</span> Translate Composition
+            </h2>
+            <div class="lang-row">
+                <div class="lang-box">
+                    <label>From</label>
+                    <div class="lang-locked"><span class="material-symbols-outlined">lock</span> English</div>
+                </div>
+                <div class="lang-box">
+                    <label>To</label>
+                    <button type="button" class="lang-picker-trigger" id="translate-target-lang-btn" onclick="openLangPicker()">
+                        <span class="lang-btn-name" id="translate-target-lang-name">Choose language</span>
+                        <span class="material-symbols-outlined">expand_more</span>
+                    </button>
+                </div>
+            </div>
+            <div class="chars-left-row">
+                <span class="cl-text"><span id="chars-left-num">4500</span> Characters Left</span>
+                <span class="info-q" onclick="openCharInfoModal()">?</span>
+            </div>
+            <div class="usage-bar-wrap"><div class="usage-bar-fill" id="usage-bar-fill" style="width:0%"></div></div>
+            <div class="usage-bar-label" id="usage-bar-label">This composition uses 0 characters.</div>
+
+            <button class="btn-primary" id="translate-go-btn" onclick="startTranslation()" style="width:100%;justify-content:center;margin-bottom:8px;">
+                <span class="material-symbols-outlined">auto_awesome</span> Translate
+            </button>
+
+            <div class="translate-status" id="translate-status">
+                <div class="spinner"></div>
+                <div style="font-weight:600;" id="translate-status-text">Translating…</div>
+            </div>
+
+            <div class="already-translated-section" id="already-translated-section" style="display:none;">
+                <div class="at-label">Already Translated</div>
+                <div id="already-translated-list"></div>
+            </div>
+
+            <button class="btn-tonal" onclick="closeModals()" style="width:100%;justify-content:center;margin-top:10px;">Close</button>
+        </div>
+    </div>
+
+    <!-- Char count info modal -->
+    <div id="char-info-modal" class="modal-overlay" onclick="if(event.target===this)closeModals()">
+        <div class="modal-content" style="max-width:380px;">
+            <h2 class="modal-title">Characters Left, Explained</h2>
+            <p class="modal-text">Translation uses a shared free service with a limited number of characters per day, so everyone gets a fair daily budget of 4500 characters. It resets automatically every day. Once you use it all up, you'll need to wait until the next day to translate again.</p>
+            <p class="modal-text">Want more room? Add your email in Settings → Increase Translation Limit to raise your daily budget to 45,000 characters.</p>
+            <button class="btn-tonal" onclick="closeModals()" style="width:100%;justify-content:center;">Got it</button>
+        </div>
+    </div>
+
+    <!-- Generic confirmation modal -->
+    <div id="confirm-modal" class="modal-overlay" style="z-index:1050;" onclick="if(event.target===this)closeConfirmModal()">
+        <div class="modal-content" style="max-width:380px;">
+            <h2 class="modal-title" id="confirm-modal-title">Are you sure?</h2>
+            <p class="modal-text" id="confirm-modal-text"></p>
+            <button class="btn-primary" id="confirm-modal-yes" onclick="confirmModalYes()" style="width:100%;justify-content:center;margin-bottom:10px;background:var(--md-secondary);"><span class="material-symbols-outlined">delete</span> Delete</button>
+            <button class="btn-tonal" onclick="closeConfirmModal()" style="width:100%;justify-content:center;">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Full-screen language picker -->
+    <div id="lang-picker-screen" class="lang-picker-screen">
+        <div class="lang-picker-header">
+            <button onclick="closeLangPicker()" title="Back"><span class="material-symbols-outlined">arrow_back</span></button>
+            <input type="text" id="lang-picker-search" placeholder="Search a language…" oninput="filterLangPicker()">
+        </div>
+        <div class="lang-picker-list" id="lang-picker-list"></div>
     </div>
 
     <!-- PDF progress overlay -->
@@ -481,13 +741,61 @@
         const REPO = 'mahi902/DocuComp';
         const API_BASE = `https://api.github.com/repos/${REPO}`;
 
+        // ── Translation feature: state & config ──────────────────────────────
+        let currentTranslationLang = 'en', currentTranslationLangName = 'English';
+        const DAILY_CHAR_QUOTA_BASE = 4500; // MyMemory's free tier allows 5000/day/user — 4500 leaves headroom for other services
+        const DAILY_CHAR_QUOTA_WITH_EMAIL = 45000; // MyMemory allows 50000/day/user when an email is provided — we cap at 45000 for headroom
+        const QUOTA_COOKIE = 'docucomp_translate_quota';
+        const EMAIL_COOKIE = 'docucomp_translate_email';
+        const TR_DB_NAME = 'docucomp_translations_db', TR_DB_VERSION = 1, TR_STORE = 'translations';
+        const TRANSLATE_LANGUAGES = [
+            {code:'sq',name:'Albanian'}, {code:'am',name:'Amharic'}, {code:'ar',name:'Arabic'},
+            {code:'hy',name:'Armenian'}, {code:'az',name:'Azerbaijani'}, {code:'eu',name:'Basque'},
+            {code:'be',name:'Belarusian'}, {code:'bn',name:'Bengali'}, {code:'bs',name:'Bosnian'},
+            {code:'bg',name:'Bulgarian'}, {code:'my',name:'Burmese'}, {code:'ca',name:'Catalan'},
+            {code:'ceb',name:'Cebuano'}, {code:'zh-CN',name:'Chinese (Simplified)'}, {code:'zh-TW',name:'Chinese (Traditional)'},
+            {code:'co',name:'Corsican'}, {code:'hr',name:'Croatian'}, {code:'cs',name:'Czech'},
+            {code:'da',name:'Danish'}, {code:'nl',name:'Dutch'}, {code:'eo',name:'Esperanto'},
+            {code:'et',name:'Estonian'}, {code:'fi',name:'Finnish'}, {code:'fr',name:'French'},
+            {code:'fy',name:'Frisian'}, {code:'gl',name:'Galician'}, {code:'ka',name:'Georgian'},
+            {code:'de',name:'German'}, {code:'el',name:'Greek'}, {code:'gu',name:'Gujarati'},
+            {code:'ht',name:'Haitian Creole'}, {code:'ha',name:'Hausa'}, {code:'haw',name:'Hawaiian'},
+            {code:'he',name:'Hebrew'}, {code:'hi',name:'Hindi'}, {code:'hmn',name:'Hmong'},
+            {code:'hu',name:'Hungarian'}, {code:'is',name:'Icelandic'}, {code:'ig',name:'Igbo'},
+            {code:'id',name:'Indonesian'}, {code:'ga',name:'Irish'}, {code:'it',name:'Italian'},
+            {code:'ja',name:'Japanese'}, {code:'jv',name:'Javanese'}, {code:'kn',name:'Kannada'},
+            {code:'kk',name:'Kazakh'}, {code:'km',name:'Khmer'}, {code:'rw',name:'Kinyarwanda'},
+            {code:'ko',name:'Korean'}, {code:'ku',name:'Kurdish'}, {code:'ky',name:'Kyrgyz'},
+            {code:'lo',name:'Lao'}, {code:'la',name:'Latin'}, {code:'lv',name:'Latvian'},
+            {code:'lt',name:'Lithuanian'}, {code:'lb',name:'Luxembourgish'}, {code:'mk',name:'Macedonian'},
+            {code:'mg',name:'Malagasy'}, {code:'ms',name:'Malay'}, {code:'ml',name:'Malayalam'},
+            {code:'mt',name:'Maltese'}, {code:'mi',name:'Maori'}, {code:'mr',name:'Marathi'},
+            {code:'mn',name:'Mongolian'}, {code:'ne',name:'Nepali'}, {code:'no',name:'Norwegian'},
+            {code:'ny',name:'Nyanja (Chichewa)'}, {code:'or',name:'Odia'}, {code:'ps',name:'Pashto'},
+            {code:'fa',name:'Persian'}, {code:'pl',name:'Polish'}, {code:'pt',name:'Portuguese'},
+            {code:'pa',name:'Punjabi'}, {code:'ro',name:'Romanian'}, {code:'ru',name:'Russian'},
+            {code:'sm',name:'Samoan'}, {code:'gd',name:'Scots Gaelic'}, {code:'sr',name:'Serbian'},
+            {code:'st',name:'Sesotho'}, {code:'sn',name:'Shona'}, {code:'sd',name:'Sindhi'},
+            {code:'si',name:'Sinhala'}, {code:'sk',name:'Slovak'}, {code:'sl',name:'Slovenian'},
+            {code:'so',name:'Somali'}, {code:'es',name:'Spanish'}, {code:'su',name:'Sundanese'},
+            {code:'sw',name:'Swahili'}, {code:'sv',name:'Swedish'}, {code:'tl',name:'Tagalog (Filipino)'},
+            {code:'tg',name:'Tajik'}, {code:'ta',name:'Tamil'}, {code:'tt',name:'Tatar'},
+            {code:'te',name:'Telugu'}, {code:'th',name:'Thai'}, {code:'tr',name:'Turkish'},
+            {code:'tk',name:'Turkmen'}, {code:'uk',name:'Ukrainian'}, {code:'ur',name:'Urdu'},
+            {code:'ug',name:'Uyghur'}, {code:'uz',name:'Uzbek'}, {code:'vi',name:'Vietnamese'},
+            {code:'cy',name:'Welsh'}, {code:'xh',name:'Xhosa'}, {code:'yi',name:'Yiddish'},
+            {code:'yo',name:'Yoruba'}, {code:'zu',name:'Zulu'}
+        ];
+        let selectedTargetLang = null;
+
         document.addEventListener('DOMContentLoaded', () => {
-            initBlog(); setupSearchInputs(); setupCustomDropdowns(); setupReadingSuite();
+            initBlog(); setupSearchInputs(); setupCustomDropdowns(); setupReadingSuite(); initTranslateLimitUI();
             document.addEventListener('click', (e) => {
                 if(!e.target.closest('.fab') && !e.target.closest('.floating-panel')) {
                     document.getElementById('sort-panel').classList.remove('open');
                     document.getElementById('settings-panel').classList.remove('open');
                 }
+                if(!e.target.closest('.md-card')) deselectAllCards();
             });
         });
 
@@ -507,8 +815,17 @@
                 }
                 allPosts = rawData.map(processRawPost);
                 sortedPosts = [...allPosts];
-                updateHomeStats(); startPlaceholderRotation(); renderHomeGrid(); checkHashAndRoute();
+                updateHomeStats(); startPlaceholderRotation(); renderHomeGrid(); checkHashAndRoute(); populateStructureTagSource();
             } catch(err) { console.warn('Live API failed:', err); loadMockData(); }
+        }
+
+        function refreshCompositions() {
+            const btn = document.getElementById('refresh-btn');
+            if(btn) btn.classList.add('spinning');
+            initBlog().finally(() => {
+                if(btn) btn.classList.remove('spinning');
+                showToast('Compositions refreshed');
+            });
         }
 
         function loadMockData() {
@@ -521,6 +838,8 @@
             const tagRe = /#([a-zA-Z0-9_-]+)/g; let m;
             while((m = tagRe.exec(rawContent)) !== null) tags.push(m[1]);
             rawContent = rawContent.replace(/^(?:#\w+(?:,\s*)?)+\s*\n+/g, '');
+            // Strip trailing tag-only line(s) at the bottom of the composition (e.g. "#tag1 #tag2")
+            rawContent = rawContent.replace(/\n+(?:[ \t]*(?:#[a-zA-Z0-9_-]+)(?:[ \t,]+#[a-zA-Z0-9_-]+)*[ \t]*\n*)+$/g, '\n');
             let coverImg = null;
             const imgM = rawContent.match(/!\[.*?\]\((.*?)\)/);
             if(imgM) { coverImg = imgM[1]; rawContent = rawContent.replace(/!\[.*?\]\((.*?)\)/,''); }
@@ -560,9 +879,20 @@
             sortedPosts.forEach(post => {
                 const card = document.createElement('article');
                 card.className = 'md-card card-placeholder'; card.dataset.id = post.id;
-                card.onclick = () => openPost(post);
+                card.onclick = () => selectCardThenOpen(card, post);
                 grid.appendChild(card); observer.observe(card);
             });
+        }
+
+        function selectCardThenOpen(card, post) {
+            document.querySelectorAll('.md-card.selected').forEach(c => c.classList.remove('selected'));
+            void card.offsetWidth; // force reflow so animation restarts cleanly
+            card.classList.add('selected');
+            setTimeout(() => openPost(post), 380);
+        }
+
+        function deselectAllCards() {
+            document.querySelectorAll('.md-card.selected').forEach(c => c.classList.remove('selected'));
         }
 
         function populateCardContent(card) {
@@ -628,9 +958,18 @@
         }
 
         // ── Structure Mode ────────────────────────────────────────────────────
-        function buildBigramModel() {
+        function populateStructureTagSource() {
+            const sel = document.getElementById('structure-tag-source');
+            if(!sel) return;
+            const allTags = [...new Set(allPosts.flatMap(p=>p.tags))].sort();
+            sel.innerHTML = '<option value="all">All compositions</option>' + allTags.map(t=>`<option value="${t}">#${t} only</option>`).join('');
+        }
+
+        function buildBigramModel(tagFilter) {
             const model = {};
-            allPosts.forEach(post => {
+            const posts = (tagFilter && tagFilter!=='all') ? allPosts.filter(p=>p.tags.includes(tagFilter)) : allPosts;
+            const source = posts.length ? posts : allPosts;
+            source.forEach(post => {
                 const text = post.content
                     .replace(/!\[.*?\]\(.*?\)/g,'').replace(/\[([^\]]+)\]\([^)]+\)/g,'$1')
                     .replace(/[#*_`>~\[\]]/g,'').replace(/\s+/g,' ').toLowerCase().trim();
@@ -643,49 +982,73 @@
             return model;
         }
 
-        function weightedPick(candidates) {
+        function weightedPick(candidates, surprising) {
             const entries = Object.entries(candidates);
+            if(surprising) {
+                // Bias toward less common continuations for a more surprising result
+                const sorted = [...entries].sort((a,b)=>a[1]-b[1]);
+                const pool = sorted.slice(0, Math.max(1, Math.ceil(sorted.length*0.6)));
+                return pool[Math.floor(Math.random()*pool.length)][0];
+            }
             const total = entries.reduce((s,[,c])=>s+c,0);
             let r = Math.random()*total;
             for(const [w,c] of entries) { r-=c; if(r<=0) return w; }
             return entries[entries.length-1][0];
         }
 
+        function generateOneSentence(model, seedWords, targetLen, surprising) {
+            const sentence = [...seedWords];
+            let last = seedWords[seedWords.length-1];
+            for(let i=sentence.length; i<targetLen; i++) {
+                const cands = model[last];
+                if(!cands || !Object.keys(cands).length) {
+                    const fallbacks = Object.keys(model);
+                    if(!fallbacks.length) break;
+                    last = fallbacks[Math.floor(Math.random()*Math.min(fallbacks.length,50))];
+                    const fc = model[last]; if(!fc) break;
+                    const next = weightedPick(fc, surprising); sentence.push(next); last=next;
+                } else {
+                    const next = weightedPick(cands, surprising); sentence.push(next); last=next;
+                }
+            }
+            let result = sentence.map((w,i)=>i===0?w.charAt(0).toUpperCase()+w.slice(1):w).join(' ');
+            if(!/[.!?]$/.test(result)) result+='.';
+            return result;
+        }
+
         function runStructureMode() {
             const seed = document.getElementById('structure-seed').value.trim();
             if(!seed) { showToast('Enter some seed words first'); return; }
             if(!allPosts.length) { showToast('Compositions not loaded yet'); return; }
+            const lengthOpt = document.getElementById('structure-length').value;
+            const variants = parseInt(document.getElementById('structure-variants').value, 10) || 1;
+            const tagSource = document.getElementById('structure-tag-source').value;
+            const surprising = document.getElementById('structure-style').value === 'surprising';
+            const lenMap = {short:[8,12], medium:[16,26], long:[32,42]};
+            const [lo,hi] = lenMap[lengthOpt] || lenMap.medium;
             document.getElementById('structure-loading').style.display='block';
             document.getElementById('structure-output').style.display='none';
             document.getElementById('structure-actions').style.display='none';
             setTimeout(() => {
-                const model = buildBigramModel();
+                const model = buildBigramModel(tagSource);
                 const seedWords = seed.toLowerCase().replace(/[^a-z '\s]/g,'').trim().split(/\s+/).filter(Boolean);
-                const sentence = [...seedWords];
-                const targetLen = 16 + Math.floor(Math.random()*10);
-                let last = seedWords[seedWords.length-1];
-                for(let i=sentence.length; i<targetLen; i++) {
-                    const cands = model[last];
-                    if(!cands || !Object.keys(cands).length) {
-                        const fallbacks = Object.keys(model);
-                        if(!fallbacks.length) break;
-                        last = fallbacks[Math.floor(Math.random()*Math.min(fallbacks.length,50))];
-                        const fc = model[last]; if(!fc) break;
-                        const next = weightedPick(fc); sentence.push(next); last=next;
-                    } else {
-                        const next = weightedPick(cands); sentence.push(next); last=next;
-                    }
+                const results = [];
+                for(let v=0; v<variants; v++) {
+                    const targetLen = lo + Math.floor(Math.random()*(hi-lo+1));
+                    results.push(generateOneSentence(model, seedWords, targetLen, surprising));
                 }
-                let result = sentence.map((w,i)=>i===0?w.charAt(0).toUpperCase()+w.slice(1):w).join(' ');
-                if(!/[.!?]$/.test(result)) result+='.';
                 document.getElementById('structure-loading').style.display='none';
-                const out=document.getElementById('structure-output'); out.textContent=result; out.style.display='block';
+                const out=document.getElementById('structure-output');
+                out.innerHTML = results.map(r=>`<p style="margin:0 0 14px;">${r}</p>`).join('');
+                out.style.display='block';
                 document.getElementById('structure-actions').style.display='flex';
+                out.dataset.raw = results.join('\n\n');
             }, 280);
         }
 
         function copyStructureResult() {
-            const text = document.getElementById('structure-output').textContent;
+            const out = document.getElementById('structure-output');
+            const text = out.dataset.raw || out.textContent;
             if(navigator.clipboard) { navigator.clipboard.writeText(text).then(()=>showToast('Copied!')); }
             else { const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');showToast('Copied!');}catch(e){}document.body.removeChild(ta); }
         }
@@ -760,20 +1123,36 @@
         // ── Reader ────────────────────────────────────────────────────────────
         function openPost(post) {
             currentPost=post;
+            currentTranslationLang='en';
+            resetActionBar();
+            renderPostIntoReader(post.title, post.content, false);
             const imgEl=document.getElementById('reader-header-img'), gradEl=document.getElementById('reader-header-gradient');
             if(post.coverImg){ imgEl.src=post.coverImg; imgEl.style.display='block'; gradEl.style.display='none'; }
             else { imgEl.style.display='none'; gradEl.style.background=getGradientForTitle(post.title); gradEl.textContent=post.title; gradEl.style.display='flex'; }
-            document.getElementById('reader-title').textContent=post.title;
             document.getElementById('reader-date').textContent=post.dateFormatted;
             const tc=document.getElementById('reader-tags'); tc.innerHTML='';
             post.tags.forEach(t=>{ const sp=document.createElement('span'); sp.className='tag-pill'; sp.textContent=`#${t}`; tc.appendChild(sp); });
-            // DCP: strip DCP tags from rendered content
+            renderTranslationBadge();
+            showView('reader-view'); updateReadingGuide();
+        }
+
+        // Renders title/body markdown into the reader, stripping DCP tags. Used for both
+        // the original English composition and for loaded translations.
+        function renderPostIntoReader(title, content, animate) {
             const dcpRe=/(?:<|&lt;)DCP(?:>|&gt;)\s*(.*?)\s*(?:<|&lt;)\/DCP(?:>|&gt;)/gi;
-            let dcpUrl=null, processed=post.content.replace(dcpRe,(m,url)=>{ dcpUrl=url.trim(); return ''; });
+            let dcpUrl=null, processed=content.replace(dcpRe,(m,url)=>{ dcpUrl=url.trim(); return ''; });
             const ob=document.getElementById('open-docuwrite-btn');
             ob.onclick=()=>window.open(dcpUrl||'https://mahi902.github.io/DocuWritePro/','_blank');
-            document.getElementById('reader-body').innerHTML=marked.parse(processed);
-            showView('reader-view'); updateReadingGuide();
+            const titleEl=document.getElementById('reader-title'), bodyEl=document.getElementById('reader-body');
+            const apply=()=>{ titleEl.textContent=title; bodyEl.innerHTML=marked.parse(processed); updateReadingGuide(); };
+            if(!animate) { apply(); return; }
+            titleEl.classList.add('reader-fading-out'); bodyEl.classList.add('reader-fading-out');
+            setTimeout(()=>{
+                apply();
+                titleEl.classList.remove('reader-fading-out'); bodyEl.classList.remove('reader-fading-out');
+                titleEl.classList.add('reader-fading-in'); bodyEl.classList.add('reader-fading-in');
+                setTimeout(()=>{ titleEl.classList.remove('reader-fading-in'); bodyEl.classList.remove('reader-fading-in'); }, 600);
+            }, 350);
         }
 
         function openLatestPost() { if(allPosts.length>0) openPost(allPosts[0]); }
@@ -792,6 +1171,356 @@
             document.getElementById('ana-sentences').textContent=currentPost.content.split(/[.?!]+/).filter(Boolean).length;
             document.getElementById('ana-paragraphs').textContent=currentPost.content.split(/\n\s*\n/).filter(Boolean).length;
             document.getElementById('analysis-modal').classList.add('open');
+        }
+
+        // ── Expand action bar (reveals extra buttons inline, in the same scrollable row) ──
+        function expandActionBar() {
+            const btn=document.getElementById('expand-btn');
+            if(btn) btn.style.display='none';
+            document.querySelectorAll('.expand-extra').forEach(b=>b.style.display='flex');
+        }
+        function resetActionBar() {
+            const btn=document.getElementById('expand-btn');
+            if(btn) btn.style.display='flex';
+            document.querySelectorAll('.expand-extra').forEach(b=>b.style.display='none');
+        }
+
+        // ── Translation: cookie-based daily quota ────────────────────────────
+        function setCookie(name,value,days) {
+            const d=new Date(); d.setTime(d.getTime()+days*24*60*60*1000);
+            document.cookie = `${name}=${encodeURIComponent(value)};expires=${d.toUTCString()};path=/;SameSite=Lax`;
+        }
+        function getCookie(name) {
+            const m=document.cookie.match(new RegExp('(?:^|; )'+name+'=([^;]*)'));
+            return m ? decodeURIComponent(m[1]) : null;
+        }
+        function todayStr() { return new Date().toISOString().slice(0,10); }
+        function getQuotaState() {
+            let state=null;
+            try { const raw=getCookie(QUOTA_COOKIE); state = raw ? JSON.parse(raw) : null; } catch(e) { state=null; }
+            if(!state || state.date!==todayStr()) { state={date:todayStr(), used:0}; setCookie(QUOTA_COOKIE, JSON.stringify(state), 3); }
+            return state;
+        }
+        function getCharsLeft() { return Math.max(0, getDailyQuota() - getQuotaState().used); }
+        function useQuota(chars) { const s=getQuotaState(); s.used+=chars; setCookie(QUOTA_COOKIE, JSON.stringify(s), 3); }
+        function isValidEmail(email) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
+        function getTranslateEmail() { return getCookie(EMAIL_COOKIE) || ''; }
+        function getDailyQuota() {
+            const email=getTranslateEmail();
+            return (email && isValidEmail(email)) ? DAILY_CHAR_QUOTA_WITH_EMAIL : DAILY_CHAR_QUOTA_BASE;
+        }
+        function openCharInfoModal() { document.getElementById('char-info-modal').classList.add('open'); }
+
+        // ── Translation: optional email for a higher daily character limit ──
+        function onTranslateLimitToggle() {
+            const toggle=document.getElementById('translate-limit-toggle');
+            const row=document.getElementById('translate-email-row');
+            if(toggle.checked) {
+                row.style.display='block';
+                const email=getTranslateEmail();
+                if(email && isValidEmail(email)) showSavedEmailState(email);
+                else showEmailInputState('');
+            } else {
+                row.style.display='none';
+                if(getTranslateEmail()) {
+                    setCookie(EMAIL_COOKIE, '', -1);
+                    showToast('Translation limit reset to 4,500 characters/day');
+                    updateCharsUI();
+                }
+            }
+        }
+        function clearEmailError() { document.getElementById('translate-email-error').style.display='none'; }
+        function showEmailInputState(prefill) {
+            document.getElementById('translate-email-input-wrap').style.display='flex';
+            document.getElementById('translate-email-save-btn').style.display='flex';
+            document.getElementById('translate-email-saved-chip').style.display='none';
+            document.getElementById('translate-email-input').value = prefill||'';
+            document.getElementById('translate-email-error').style.display='none';
+        }
+        function showSavedEmailState(email) {
+            document.getElementById('translate-email-input-wrap').style.display='none';
+            document.getElementById('translate-email-save-btn').style.display='none';
+            document.getElementById('translate-email-error').style.display='none';
+            document.getElementById('translate-email-saved-chip').style.display='flex';
+            document.getElementById('translate-email-saved-text').textContent=email;
+        }
+        function editTranslateEmail() { showEmailInputState(getTranslateEmail()); }
+        function saveTranslateEmail() {
+            const input=document.getElementById('translate-email-input');
+            const email=input.value.trim();
+            const errEl=document.getElementById('translate-email-error');
+            if(!isValidEmail(email)) { errEl.textContent='Please enter a valid email address.'; errEl.style.display='block'; return; }
+            setCookie(EMAIL_COOKIE, email, 365);
+            showSavedEmailState(email);
+            showToast('Translation limit increased to 45,000 chars/day');
+            updateCharsUI();
+        }
+        // Keeps the toggle/panel honest: if no valid email is actually saved, the toggle
+        // can't stay on — it snaps back off whenever the Reading Suite is opened.
+        function initTranslateLimitUI() {
+            const toggle=document.getElementById('translate-limit-toggle');
+            if(!toggle) return;
+            const email=getTranslateEmail();
+            const valid = !!(email && isValidEmail(email));
+            toggle.checked = valid;
+            document.getElementById('translate-email-row').style.display = valid ? 'block' : 'none';
+            if(valid) showSavedEmailState(email); else showEmailInputState('');
+        }
+
+        // ── Generic confirmation modal (used for destructive actions like deleting a translation) ──
+        let confirmModalCallback = null;
+        function openConfirmModal(title, text, confirmLabel, onConfirm) {
+            document.getElementById('confirm-modal-title').textContent = title;
+            document.getElementById('confirm-modal-text').textContent = text;
+            document.getElementById('confirm-modal-yes').innerHTML = `<span class="material-symbols-outlined">delete</span> ${confirmLabel||'Confirm'}`;
+            confirmModalCallback = onConfirm;
+            document.getElementById('confirm-modal').classList.add('open');
+        }
+        function closeConfirmModal() { document.getElementById('confirm-modal').classList.remove('open'); confirmModalCallback=null; }
+        function confirmModalYes() { const cb=confirmModalCallback; closeConfirmModal(); if(cb) cb(); }
+
+        // ── Translation: IndexedDB storage ───────────────────────────────────
+        function openTranslationDB() {
+            return new Promise((resolve,reject)=>{
+                const req=indexedDB.open(TR_DB_NAME, TR_DB_VERSION);
+                req.onupgradeneeded=(e)=>{
+                    const db=e.target.result;
+                    if(!db.objectStoreNames.contains(TR_STORE)) {
+                        const store=db.createObjectStore(TR_STORE,{keyPath:'key'});
+                        store.createIndex('postId','postId',{unique:false});
+                    }
+                };
+                req.onsuccess=()=>resolve(req.result);
+                req.onerror=()=>reject(req.error);
+            });
+        }
+        async function saveTranslation(postId, langCode, langName, title, content, charsUsed) {
+            const db=await openTranslationDB();
+            return new Promise((resolve,reject)=>{
+                const tx=db.transaction(TR_STORE,'readwrite');
+                tx.objectStore(TR_STORE).put({key:`${postId}::${langCode}`, postId, langCode, langName, title, content, charsUsed, ts:Date.now()});
+                tx.oncomplete=()=>resolve(); tx.onerror=()=>reject(tx.error);
+            });
+        }
+        async function getTranslation(postId, langCode) {
+            const db=await openTranslationDB();
+            return new Promise((resolve,reject)=>{
+                const tx=db.transaction(TR_STORE,'readonly');
+                const req=tx.objectStore(TR_STORE).get(`${postId}::${langCode}`);
+                req.onsuccess=()=>resolve(req.result||null); req.onerror=()=>reject(req.error);
+            });
+        }
+        async function getAllTranslationsForPost(postId) {
+            const db=await openTranslationDB();
+            return new Promise((resolve,reject)=>{
+                const tx=db.transaction(TR_STORE,'readonly');
+                const idx=tx.objectStore(TR_STORE).index('postId');
+                const req=idx.getAll(postId);
+                req.onsuccess=()=>resolve(req.result||[]); req.onerror=()=>reject(req.error);
+            });
+        }
+        async function deleteTranslationRecord(postId, langCode) {
+            const db=await openTranslationDB();
+            return new Promise((resolve,reject)=>{
+                const tx=db.transaction(TR_STORE,'readwrite');
+                tx.objectStore(TR_STORE).delete(`${postId}::${langCode}`);
+                tx.oncomplete=()=>resolve(); tx.onerror=()=>reject(tx.error);
+            });
+        }
+
+        // ── Translation: full-screen language picker ─────────────────────────
+        function openLangPicker() {
+            const search=document.getElementById('lang-picker-search');
+            search.value='';
+            populateLangPickerList('');
+            document.getElementById('lang-picker-screen').classList.add('open');
+            setTimeout(()=>search.focus(), 320);
+        }
+        function closeLangPicker() { document.getElementById('lang-picker-screen').classList.remove('open'); }
+        function filterLangPicker() { populateLangPickerList(document.getElementById('lang-picker-search').value); }
+        function populateLangPickerList(filter) {
+            const list=document.getElementById('lang-picker-list');
+            const f=(filter||'').trim().toLowerCase();
+            const matches = f ? TRANSLATE_LANGUAGES.filter(l=>l.name.toLowerCase().includes(f)) : TRANSLATE_LANGUAGES;
+            if(!matches.length) { list.innerHTML='<div class="lang-picker-empty">No languages match your search.</div>'; return; }
+            list.innerHTML='';
+            matches.forEach(l=>{
+                const row=document.createElement('button');
+                const isActive = selectedTargetLang && selectedTargetLang.code===l.code;
+                row.className='lang-picker-item'+(isActive?' active':'');
+                row.innerHTML = `<span>${l.name}</span>${isActive?'<span class="material-symbols-outlined">check</span>':''}`;
+                row.onclick=()=>{ selectedTargetLang=l; updateTargetLangDisplay(); closeLangPicker(); updateCharsUI(); };
+                list.appendChild(row);
+            });
+        }
+        function updateTargetLangDisplay() {
+            const nameEl=document.getElementById('translate-target-lang-name');
+            if(nameEl) nameEl.textContent = selectedTargetLang ? selectedTargetLang.name : 'Choose language';
+        }
+        function stripMarkdownForCount(md) { return md.replace(/!\[.*?\]\(.*?\)/g,'').replace(/(?:<|&lt;)DCP(?:>|&gt;).*?(?:<|&lt;)\/DCP(?:>|&gt;)/gi,'').trim(); }
+        function getCompositionCharCount(post) { return post.title.length + stripMarkdownForCount(post.content).length; }
+
+        function updateCharsUI() {
+            const left=getCharsLeft();
+            document.getElementById('chars-left-num').textContent=Math.max(0,left);
+            const compChars = currentPost ? getCompositionCharCount(currentPost) : 0;
+            const pct = left>0 ? Math.min(100, Math.round((compChars/left)*100)) : (compChars>0 ? 100 : 0);
+            const fill=document.getElementById('usage-bar-fill');
+            fill.style.width=pct+'%';
+            const overBudget = compChars>left;
+            fill.style.background = overBudget ? 'var(--md-secondary)' : 'var(--md-primary)';
+            document.getElementById('usage-bar-label').textContent = `This composition uses ${compChars} characters — that's ${pct}% of your remaining budget.`;
+            const goBtn=document.getElementById('translate-go-btn');
+            const noLang = !selectedTargetLang;
+            goBtn.disabled=overBudget||noLang; goBtn.style.opacity=(overBudget||noLang)?'0.5':'1'; goBtn.style.cursor=(overBudget||noLang)?'not-allowed':'pointer';
+        }
+
+        async function renderAlreadyTranslatedList() {
+            const sec=document.getElementById('already-translated-section');
+            const list=document.getElementById('already-translated-list');
+            if(!currentPost) { sec.style.display='none'; return; }
+            let items=[];
+            try { items=await getAllTranslationsForPost(currentPost.id); } catch(e) { items=[]; }
+            if(!items.length) { sec.style.display='none'; return; }
+            sec.style.display='block'; list.innerHTML='';
+            items.forEach(it=>{
+                const row=document.createElement('div'); row.className='at-item';
+                row.innerHTML = `<span class="at-name"><span class="material-symbols-outlined" style="font-size:18px;">check_circle</span>${it.langName}</span><span class="at-del" title="Delete translation"><span class="material-symbols-outlined" style="font-size:18px;">delete</span></span>`;
+                row.querySelector('.at-name').onclick = ()=>{ loadTranslation(it.langCode, it.langName); closeModals(); };
+                row.querySelector('.at-del').onclick = (e)=>{
+                    e.stopPropagation();
+                    openConfirmModal(
+                        'Delete this translation?',
+                        `This removes the ${it.langName} translation of this composition. You can always translate it again later.`,
+                        'Delete',
+                        async () => {
+                            await deleteTranslationRecord(currentPost.id, it.langCode);
+                            showToast(`Removed ${it.langName} translation`);
+                            renderAlreadyTranslatedList();
+                            if(currentTranslationLang===it.langCode) revertToOriginal();
+                        }
+                    );
+                };
+                list.appendChild(row);
+            });
+        }
+
+        async function openTranslateModal() {
+            if(!currentPost) return;
+            if(!selectedTargetLang) selectedTargetLang = TRANSLATE_LANGUAGES.find(l=>l.code==='es') || TRANSLATE_LANGUAGES[0];
+            updateTargetLangDisplay();
+            document.getElementById('translate-status').style.display='none';
+            document.getElementById('translate-go-btn').style.display='flex';
+            updateCharsUI();
+            await renderAlreadyTranslatedList();
+            document.getElementById('translate-modal').classList.add('open');
+        }
+
+        async function startTranslation() {
+            if(!currentPost || !selectedTargetLang) return;
+            const langCode=selectedTargetLang.code, langName=selectedTargetLang.name;
+
+            const existing = await getTranslation(currentPost.id, langCode);
+            if(existing) { showToast(`You already have a translation to ${langName} — loading it`); loadTranslation(langCode, langName); closeModals(); return; }
+
+            const compChars=getCompositionCharCount(currentPost), left=getCharsLeft();
+            if(compChars>left) { showToast(`Not enough characters left today (needs ${compChars}, ${left} left)`); return; }
+
+            document.getElementById('translate-go-btn').style.display='none';
+            const statusEl=document.getElementById('translate-status'), statusText=document.getElementById('translate-status-text');
+            statusText.textContent=`Translating to ${langName}…`;
+            statusEl.style.display='block';
+
+            try {
+                const translatedTitle = await translateText(currentPost.title, langCode);
+                const translatedBody  = await translateMarkdown(currentPost.content, langCode);
+                useQuota(compChars);
+                await saveTranslation(currentPost.id, langCode, langName, translatedTitle, translatedBody, compChars);
+                statusEl.style.display='none'; document.getElementById('translate-go-btn').style.display='flex';
+                updateCharsUI(); await renderAlreadyTranslatedList();
+                showToast(`Translated to ${langName}!`);
+                loadTranslation(langCode, langName);
+                closeModals();
+            } catch(err) {
+                console.error('Translation failed:', err);
+                statusEl.style.display='none'; document.getElementById('translate-go-btn').style.display='flex';
+                showToast('Translation failed — please try again later');
+            }
+        }
+
+        async function loadTranslation(langCode, langName) {
+            if(!currentPost) return;
+            if(langCode==='en') { revertToOriginal(); return; }
+            const rec = await getTranslation(currentPost.id, langCode);
+            if(!rec) { showToast('Translation not found'); return; }
+            currentTranslationLang=langCode; currentTranslationLangName=langName||rec.langName;
+            renderPostIntoReader(rec.title, rec.content, true);
+            renderTranslationBadge();
+        }
+
+        function revertToOriginal() {
+            if(!currentPost) return;
+            currentTranslationLang='en'; currentTranslationLangName='English';
+            renderPostIntoReader(currentPost.title, currentPost.content, true);
+            renderTranslationBadge();
+        }
+
+        function renderTranslationBadge() {
+            const wrap=document.getElementById('translation-badge-wrap'); if(!wrap) return;
+            wrap.innerHTML='';
+            if(currentTranslationLang && currentTranslationLang!=='en') {
+                const btn=document.createElement('button');
+                btn.className='translation-badge';
+                btn.innerHTML=`<span class="material-symbols-outlined">translate</span> Translated to ${currentTranslationLangName} — tap to view original`;
+                btn.onclick=()=>revertToOriginal();
+                wrap.appendChild(btn);
+            }
+        }
+
+        // ── Translation: MyMemory API calls ──────────────────────────────────
+        async function translateChunk(text, targetLang) {
+            const email=getTranslateEmail();
+            const emailParam = (email && isValidEmail(email)) ? `&de=${encodeURIComponent(email)}` : '';
+            const url=`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|${targetLang}${emailParam}`;
+            const res=await fetch(url);
+            if(!res.ok) throw new Error('Translate API error');
+            const data=await res.json();
+            if(data && data.responseData && typeof data.responseData.translatedText==='string') return data.responseData.translatedText;
+            throw new Error('No translation returned');
+        }
+        function chunkText(text, maxLen) {
+            const sentences=text.match(/[^.!?\n]+[.!?\n]*/g) || [text];
+            const chunks=[]; let cur='';
+            sentences.forEach(s=>{
+                if((cur+s).length>maxLen) { if(cur) chunks.push(cur); cur = s.length>maxLen ? s.slice(0,maxLen) : s; }
+                else cur+=s;
+            });
+            if(cur) chunks.push(cur);
+            return chunks.length ? chunks : [text];
+        }
+        async function translateText(text, targetLang) {
+            if(!text || !text.trim()) return text;
+            const chunks=chunkText(text, 480);
+            const out=[];
+            for(const c of chunks) { out.push(await translateChunk(c, targetLang)); }
+            return out.join(' ');
+        }
+        async function translateMarkdown(md, targetLang) {
+            const blocks=md.split(/\n{2,}/);
+            const translatedBlocks=[];
+            for(const block of blocks) {
+                if(!block.trim()) { translatedBlocks.push(block); continue; }
+                const placeholders=[];
+                let protectedBlock=block.replace(/(!\[[^\]]*\]\([^)]*\)|\[[^\]]*\]\([^)]*\)|`[^`]*`|https?:\/\/\S+)/g, (m)=>{ placeholders.push(m); return `%%PH${placeholders.length-1}%%`; });
+                const headerMatch=protectedBlock.match(/^(#{1,6}\s+|>\s+|[-*]\s+|\d+\.\s+)/);
+                let prefix='', body=protectedBlock;
+                if(headerMatch) { prefix=headerMatch[0]; body=protectedBlock.slice(prefix.length); }
+                let translatedBody = body.trim() ? await translateText(body, targetLang) : body;
+                let restored = prefix+translatedBody;
+                placeholders.forEach((p,i)=>{ restored=restored.replace(`%%PH${i}%%`, p); });
+                translatedBlocks.push(restored);
+            }
+            return translatedBlocks.join('\n\n');
         }
 
         // ── QR Code Helper ────────────────────────────────────────────────────
@@ -835,7 +1564,21 @@
         }
 
         // ── PDF Download (justified alignment, DCP removed) ───────────────────
-        function openDownloadModal() { if(currentPost) document.getElementById('download-modal').classList.add('open'); }
+        async function openDownloadModal() {
+            if(!currentPost) return;
+            document.getElementById('download-modal').classList.add('open');
+            await populateDownloadLanguageOptions();
+        }
+
+        async function populateDownloadLanguageOptions() {
+            const wrap=document.getElementById('dl-lang-row'), sel=document.getElementById('dl-language');
+            let translations=[];
+            try { translations = await getAllTranslationsForPost(currentPost.id); } catch(e) { translations=[]; }
+            if(!translations.length) { wrap.style.display='none'; sel.innerHTML=''; return; }
+            wrap.style.display='block';
+            sel.innerHTML = `<option value="en">Original (English)</option>` + translations.map(t=>`<option value="${t.langCode}">${t.langName}</option>`).join('');
+            sel.value = (currentTranslationLang && currentTranslationLang!=='en') ? currentTranslationLang : 'en';
+        }
 
         async function downloadPDF() {
             if(!currentPost) return;
@@ -843,9 +1586,18 @@
             const inclImages  = document.getElementById('dl-images').checked;
             const inclBg      = document.getElementById('dl-bgcolor').checked;
             const inclPageNums= document.getElementById('dl-pagenums').checked;
+            const inclJustify = document.getElementById('dl-justify').checked;
+            const alignMode   = inclJustify ? 'justify' : 'left';
+            const langSel = document.getElementById('dl-language');
+            const dlLangCode = langSel && langSel.value ? langSel.value : 'en';
             showPDFProgress('Preparing…');
             await new Promise(r=>setTimeout(r,180));
             try {
+                let pdfTitle = currentPost.title, pdfContent = currentPost.content;
+                if(dlLangCode!=='en') {
+                    const rec = await getTranslation(currentPost.id, dlLangCode);
+                    if(rec) { pdfTitle=rec.title; pdfContent=rec.content; }
+                }
                 const {jsPDF} = window.jspdf;
                 const pdf = new jsPDF({unit:'pt',format:'a4',compress:true});
                 const PW=pdf.internal.pageSize.getWidth(), PH=pdf.internal.pageSize.getHeight();
@@ -908,7 +1660,7 @@
                 showPDFProgress('Drawing title…');
                 pdf.setFont('helvetica','bold'); pdf.setFontSize(28);
                 pdf.setTextColor(0x0b,0x57,0xd0);
-                const titleLines=pdf.splitTextToSize(currentPost.title,CW);
+                const titleLines=pdf.splitTextToSize(pdfTitle,CW);
                 titleLines.forEach(line=>{ ensureSpace(38); pdf.text(line,PW/2,curY,{align:'center'}); curY+=38; });
                 curY+=6;
 
@@ -923,7 +1675,7 @@
 
                 showPDFProgress('Rendering body…');
                 const dcpRe=/(?:<|&lt;)DCP(?:>|&gt;)\s*(.*?)\s*(?:<|&lt;)\/DCP(?:>|&gt;)/gi;
-                const cleanContent = currentPost.content.replace(dcpRe, '');
+                const cleanContent = pdfContent.replace(dcpRe, '');
                 const tokens=marked.lexer(cleanContent);
                 pdf.setFont('helvetica','normal'); pdf.setFontSize(11); pdf.setTextColor(fg.r,fg.g,fg.b);
 
@@ -942,8 +1694,8 @@
                         const pLines=pdf.splitTextToSize(raw,CW);
                         ensureSpace(pLines.length*16+8);
                         pdf.setFont('helvetica','normal'); pdf.setFontSize(11); pdf.setTextColor(fg.r,fg.g,fg.b);
-                        // ✅ JUSTIFIED ALIGNMENT for paragraphs
-                        pLines.forEach(l=>{ pdf.text(l, M, curY, { maxWidth: CW, align: 'justify' }); curY+=16; });
+                        // Alignment follows the Justified Text toggle
+                        pLines.forEach(l=>{ pdf.text(l, M, curY, { maxWidth: CW, align: alignMode }); curY+=16; });
                         curY+=8;
                     } else if(tok.type==='list') {
                         for(const item of tok.items) {
@@ -951,8 +1703,8 @@
                             const iLines=pdf.splitTextToSize('• '+raw,CW-10);
                             ensureSpace(iLines.length*15+4);
                             pdf.setFont('helvetica','normal'); pdf.setFontSize(11); pdf.setTextColor(fg.r,fg.g,fg.b);
-                            // ✅ JUSTIFIED for list items
-                            iLines.forEach((l,i)=>{ pdf.text(l, M+(i>0?10:0), curY, { maxWidth: CW-10, align: 'justify' }); curY+=15; });
+                            // Alignment follows the Justified Text toggle
+                            iLines.forEach((l,i)=>{ pdf.text(l, M+(i>0?10:0), curY, { maxWidth: CW-10, align: alignMode }); curY+=15; });
                         }
                         curY+=6;
                     } else if(tok.type==='blockquote') {
@@ -961,8 +1713,8 @@
                         ensureSpace(bLines.length*15+10);
                         pdf.setFillColor(220,228,255); pdf.rect(M,curY-10,3,bLines.length*15+8,'F');
                         pdf.setFont('helvetica','oblique'); pdf.setFontSize(10.5); pdf.setTextColor(80,80,140);
-                        // ✅ JUSTIFIED for blockquotes
-                        bLines.forEach(l=>{ pdf.text(l, M+12, curY, { maxWidth: CW-18, align: 'justify' }); curY+=15; });
+                        // Alignment follows the Justified Text toggle
+                        bLines.forEach(l=>{ pdf.text(l, M+12, curY, { maxWidth: CW-18, align: alignMode }); curY+=15; });
                         pdf.setFont('helvetica','normal'); pdf.setFontSize(11); pdf.setTextColor(fg.r,fg.g,fg.b); curY+=8;
                     } else if(tok.type==='hr') {
                         ensureSpace(14); pdf.setDrawColor(200,200,200); pdf.setLineWidth(0.4); pdf.line(M,curY,PW-M,curY); curY+=14;
@@ -979,7 +1731,7 @@
                 drawPageDecorations();
 
                 showPDFProgress('Saving file…');
-                const name=(currentPost.title.replace(/[^a-zA-Z0-9 _-]/g,'').trim()||'composition');
+                const name=(pdfTitle.replace(/[^a-zA-Z0-9 _-]/g,'').trim()||'composition');
                 pdf.save(`${name}.pdf`);
                 hidePDFProgress(); showToast('PDF downloaded!');
             } catch(err) { hidePDFProgress(); console.error('PDF error:',err); showToast('PDF failed — check console'); }
@@ -1005,11 +1757,26 @@
         }
         function toggleFabPanel() {
             if(currentView==='home-view') document.getElementById('sort-panel').classList.toggle('open');
-            else if(currentView==='reader-view') document.getElementById('settings-panel').classList.toggle('open');
+            else if(currentView==='reader-view') { document.getElementById('settings-panel').classList.toggle('open'); initTranslateLimitUI(); }
         }
-        function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('open')); }
+        function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('open')); restoreSettingsPanelHome(); }
         function showToast(msg) { const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000); }
-        function openInfoModal() { document.getElementById('info-modal').classList.add('open'); }
+        function openInfoModal() { document.getElementById('info-modal').classList.add('open'); showInfoTab('about'); }
+
+        // Reuse the actual Reading Suite controls (same IDs/handlers) inside the home-screen
+        // "Settings" tab, so customizing it there really is the same Reading Suite used in reader view.
+        function showInfoTab(tab) {
+            document.querySelectorAll('.info-tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+            document.getElementById('info-about-content').style.display = tab==='about' ? 'block' : 'none';
+            document.getElementById('info-settings-content').style.display = tab==='settings' ? 'block' : 'none';
+            const inner=document.getElementById('settings-panel-inner'), slot=document.getElementById('info-settings-slot');
+            if(tab==='settings' && inner.parentElement!==slot) slot.appendChild(inner);
+            if(tab==='settings') initTranslateLimitUI();
+        }
+        function restoreSettingsPanelHome() {
+            const inner=document.getElementById('settings-panel-inner'), home=document.getElementById('settings-panel');
+            if(inner && home && inner.parentElement!==home) home.appendChild(inner);
+        }
 
         // ── Dropdowns ─────────────────────────────────────────────────────────
         function setupCustomDropdowns() {
