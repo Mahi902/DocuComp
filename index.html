@@ -6,7 +6,7 @@
     <title>DocuComp | Composition Engine</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Product+Sans&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Product+Sans&family=Roboto:wght@400;500;700&family=Noto+Sans+Bengali:wght@400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -255,11 +255,21 @@
         #qr-offscreen { position: absolute; left: -9999px; top: -9999px; width: 128px; height: 128px; }
 
         /* ── Section title row + Refresh ─────────────────────────────────── */
-        .section-title-row { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid var(--md-surface-variant); padding-bottom: 8px; margin-bottom: 24px; }
+        .section-title-row { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid var(--md-surface-variant); padding-bottom: 8px; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
         .section-title-row .section-title { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
+        .section-title-row-actions { display: flex; align-items: center; gap: 12px; margin-left: auto; }
         .icon-btn-small { width: 40px; height: 40px; border-radius: 50%; background: var(--md-surface-container); border: none; color: var(--md-on-surface); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 5px var(--md-shadow); transition: 0.2s; flex-shrink: 0; }
         .icon-btn-small:hover { background: var(--md-surface-variant); }
         .icon-btn-small.spinning .material-symbols-outlined { animation: spin 0.7s linear infinite; }
+        /* Language slider (English / Bangla) */
+        .lang-toggle { position: relative; display: inline-flex; background: var(--md-surface-container); border-radius: 20px; padding: 3px; user-select: none; box-shadow: 0 2px 5px var(--md-shadow); }
+        .lang-toggle-thumb { position: absolute; top: 3px; left: 3px; width: calc(50% - 3px); height: calc(100% - 6px); background: var(--md-primary); border-radius: 16px; transition: transform 0.25s cubic-bezier(0.2,0,0,1); }
+        .lang-toggle-thumb.bn { transform: translateX(100%); }
+        .lang-toggle-opt { position: relative; z-index: 1; border: none; background: transparent; padding: 7px 16px; font-weight: 600; font-size: 0.85rem; cursor: pointer; color: var(--md-on-surface); border-radius: 16px; transition: color 0.25s ease; font-family: var(--font-family); white-space: nowrap; }
+        .lang-toggle-opt.active { color: var(--md-on-primary); }
+        /* Bengali script needs its own font stack since Latin fonts (Roboto/Merriweather/Comic Sans) lack Bengali glyphs */
+        .bn-text, .bn-text .reader-content, .lang-toggle-opt[data-lang="bn"] { font-family: 'Noto Sans Bengali', var(--font-family); }
+        .md-card-title.bn-text, .md-card-gradient.bn-text { font-family: 'Noto Sans Bengali', var(--font-family); }
 
         /* ── Selected card gradient shift ────────────────────────────────── */
         .md-card-gradient { background-size: 230% 230% !important; background-position: 0% 50%; transition: background-position 0.5s ease, transform 0.2s ease; }
@@ -366,9 +376,16 @@
             </div>
             <div class="section-title-row">
                 <h2 class="section-title" style="border-bottom:none;padding-bottom:0;margin-bottom:0;">Recent Compositions</h2>
-                <button class="icon-btn-small" id="refresh-btn" onclick="refreshCompositions()" title="Refresh compositions">
-                    <span class="material-symbols-outlined">refresh</span>
-                </button>
+                <div class="section-title-row-actions">
+                    <div class="lang-toggle" id="lang-toggle">
+                        <div class="lang-toggle-thumb bn" id="lang-toggle-thumb"></div>
+                        <button class="lang-toggle-opt" data-lang="en" onclick="switchLanguage('en')">English</button>
+                        <button class="lang-toggle-opt active" data-lang="bn" onclick="switchLanguage('bn')">বাংলা</button>
+                    </div>
+                    <button class="icon-btn-small" id="refresh-btn" onclick="refreshCompositions()" title="Refresh compositions">
+                        <span class="material-symbols-outlined">refresh</span>
+                    </button>
+                </div>
             </div>
             <div class="grid" id="home-grid"></div>
         </div>
@@ -634,11 +651,15 @@
             <h2 class="modal-title" style="display:flex;align-items:center;gap:10px;justify-content:center;">
                 <span class="material-symbols-outlined">picture_as_pdf</span> Download PDF
             </h2>
+            <div id="dl-archive-hint" style="display:none;text-align:left;background:var(--md-surface-container-low);border-radius:16px;padding:16px 20px;margin-bottom:24px;font-size:0.9rem;color:var(--md-outline);">
+                <span class="material-symbols-outlined" style="font-size:18px;vertical-align:-4px;margin-right:4px;">inventory_2</span>
+                This composition has a ready-made PDF in the archive — you'll get that file directly instead of a generated one.
+            </div>
             <div id="dl-lang-row" style="display:none;text-align:left;margin-bottom:16px;">
                 <label style="font-size:0.75rem;font-weight:700;color:var(--md-outline);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:6px;">Language</label>
                 <select id="dl-language" class="mini-select" style="width:100%;"></select>
             </div>
-            <div style="text-align:left;background:var(--md-surface-container-low);border-radius:16px;padding:4px 20px;margin-bottom:24px;">
+            <div id="dl-options-wrap" style="text-align:left;background:var(--md-surface-container-low);border-radius:16px;padding:4px 20px;margin-bottom:24px;">
                 <div class="dl-row"><label for="dl-images">Include Images</label><label class="switch"><input type="checkbox" id="dl-images" checked><span class="slider"></span></label></div>
                 <div class="dl-row"><label for="dl-bgcolor">Include Background Color</label><label class="switch"><input type="checkbox" id="dl-bgcolor"><span class="slider"></span></label></div>
                 <div class="dl-row"><label for="dl-pagenums">Page Numbering</label><label class="switch"><input type="checkbox" id="dl-pagenums" checked><span class="slider"></span></label></div>
@@ -741,6 +762,14 @@
         const REPO = 'mahi902/DocuComp';
         const API_BASE = `https://api.github.com/repos/${REPO}`;
 
+        // ── Multi-language composition storage ───────────────────────────────
+        // English lives in /posts, Bangla lives in /bdposts. The homepage grid always
+        // shows whichever language is active via the slider next to "Recent Compositions".
+        let currentLang = 'bn';
+        const postsByLang = { en: [], bn: [] };
+        function getSourceLangCode(post) { return (post && post.lang==='bn') ? 'bn' : 'en'; }
+        function getSourceLangName(post) { return (post && post.lang==='bn') ? 'Bengali' : 'English'; }
+
         // ── Translation feature: state & config ──────────────────────────────
         let currentTranslationLang = 'en', currentTranslationLangName = 'English';
         const DAILY_CHAR_QUOTA_BASE = 4500; // MyMemory's free tier allows 5000/day/user — 4500 leaves headroom for other services
@@ -755,7 +784,7 @@
             {code:'bg',name:'Bulgarian'}, {code:'my',name:'Burmese'}, {code:'ca',name:'Catalan'},
             {code:'ceb',name:'Cebuano'}, {code:'zh-CN',name:'Chinese (Simplified)'}, {code:'zh-TW',name:'Chinese (Traditional)'},
             {code:'co',name:'Corsican'}, {code:'hr',name:'Croatian'}, {code:'cs',name:'Czech'},
-            {code:'da',name:'Danish'}, {code:'nl',name:'Dutch'}, {code:'eo',name:'Esperanto'},
+            {code:'da',name:'Danish'}, {code:'nl',name:'Dutch'}, {code:'en',name:'English'}, {code:'eo',name:'Esperanto'},
             {code:'et',name:'Estonian'}, {code:'fi',name:'Finnish'}, {code:'fr',name:'French'},
             {code:'fy',name:'Frisian'}, {code:'gl',name:'Galician'}, {code:'ka',name:'Georgian'},
             {code:'de',name:'German'}, {code:'el',name:'Greek'}, {code:'gu',name:'Gujarati'},
@@ -804,19 +833,52 @@
             const grid = document.getElementById('home-grid');
             grid.innerHTML = `<div class="status-container" style="grid-column:1/-1"><div class="spinner"></div><p>Syncing compositions...</p></div>`;
             try {
-                const res = await fetch(`${API_BASE}/contents/posts`, { headers: {'Accept':'application/vnd.github.v3+json'} });
-                if(!res.ok) throw new Error('API error');
+                const [enPosts, bnPosts] = await Promise.all([
+                    fetchPostsFromDir('posts', 'en'),
+                    fetchPostsFromDir('bdposts', 'bn')
+                ]);
+                postsByLang.en = enPosts; postsByLang.bn = bnPosts;
+                if(!enPosts.length && !bnPosts.length) { grid.innerHTML='<div class="status-container" style="grid-column:1/-1"><p>No compositions found.</p></div>'; return; }
+                allPosts = postsByLang[currentLang];
+                sortedPosts = [...allPosts];
+                updateLangToggleUI();
+                updateHomeStats(); startPlaceholderRotation(); renderHomeGrid(); checkHashAndRoute(); populateStructureTagSource();
+            } catch(err) { console.warn('Live API failed:', err); loadMockData(); }
+        }
+
+        async function fetchPostsFromDir(dir, lang) {
+            try {
+                const res = await fetch(`${API_BASE}/contents/${dir}`, { headers: {'Accept':'application/vnd.github.v3+json'} });
+                if(!res.ok) return [];
                 const files = (await res.json()).filter(f => f.name.endsWith('.md'));
-                if(!files.length) { grid.innerHTML='<div class="status-container" style="grid-column:1/-1"><p>No compositions found.</p></div>'; return; }
+                if(!files.length) return [];
                 const rawData = [];
                 for(const file of files) {
                     try { const r = await fetch(file.download_url); if(r.ok) rawData.push({filename:file.name, date:new Date().toISOString(), content:await r.text()}); }
                     catch(e) { console.warn(`Skip: ${file.name}`); }
                 }
-                allPosts = rawData.map(processRawPost);
+                return rawData.map(f => processRawPost(f, lang));
+            } catch(e) { console.warn(`Dir fetch failed for ${dir}:`, e); return []; }
+        }
+
+        // Switches the homepage grid between English and Bangla compositions via the slider.
+        function switchLanguage(lang) {
+            if(lang!==currentLang) {
+                currentLang = lang;
+                allPosts = postsByLang[lang] || [];
                 sortedPosts = [...allPosts];
-                updateHomeStats(); startPlaceholderRotation(); renderHomeGrid(); checkHashAndRoute(); populateStructureTagSource();
-            } catch(err) { console.warn('Live API failed:', err); loadMockData(); }
+                activeTagFilters.clear();
+                const tfs=document.getElementById('tag-filter-section'); if(tfs) tfs.style.display='none';
+                document.querySelectorAll('.sort-option').forEach((o,i)=>o.classList.toggle('active', i===0));
+                updateHomeStats(); startPlaceholderRotation(); renderHomeGrid(); populateStructureTagSource();
+                showToast(lang==='bn' ? 'Showing বাংলা compositions' : 'Showing English compositions');
+            }
+            updateLangToggleUI();
+        }
+        function updateLangToggleUI() {
+            document.querySelectorAll('.lang-toggle-opt').forEach(b=>b.classList.toggle('active', b.dataset.lang===currentLang));
+            const thumb=document.getElementById('lang-toggle-thumb');
+            if(thumb) thumb.classList.toggle('bn', currentLang==='bn');
         }
 
         function refreshCompositions() {
@@ -832,7 +894,7 @@
             document.getElementById('home-grid').innerHTML = `<div class="status-container" style="grid-column:1/-1"><p>Could not load compositions. Please check your connection.</p></div>`;
         }
 
-        function processRawPost(file) {
+        function processRawPost(file, lang) {
             let title = file.filename.replace('.md','').replace(/-/g,' ');
             let rawContent = file.content, tags = [];
             const tagRe = /#([a-zA-Z0-9_-]+)/g; let m;
@@ -840,13 +902,22 @@
             rawContent = rawContent.replace(/^(?:#\w+(?:,\s*)?)+\s*\n+/g, '');
             // Strip trailing tag-only line(s) at the bottom of the composition (e.g. "#tag1 #tag2")
             rawContent = rawContent.replace(/\n+(?:[ \t]*(?:#[a-zA-Z0-9_-]+)(?:[ \t,]+#[a-zA-Z0-9_-]+)*[ \t]*\n*)+$/g, '\n');
+            // Extract an archive PDF link from a <PDF>url</PDF> tag, if present. When a composition
+            // carries this tag, downloading it fetches the pre-made file from /DocuComp/archive
+            // instead of generating a PDF locally.
+            let pdfUrl = null;
+            const pdfRe = /(?:<|&lt;)PDF(?:>|&gt;)\s*(.*?)\s*(?:<|&lt;)\/PDF(?:>|&gt;)/i;
+            const pdfM = rawContent.match(pdfRe);
+            if(pdfM && pdfM[1] && pdfM[1].trim()) pdfUrl = pdfM[1].trim();
+            rawContent = rawContent.replace(pdfRe, '');
             let coverImg = null;
             const imgM = rawContent.match(/!\[.*?\]\((.*?)\)/);
             if(imgM) { coverImg = imgM[1]; rawContent = rawContent.replace(/!\[.*?\]\((.*?)\)/,''); }
             const wordCount = rawContent.replace(/<[^>]*>?/gm,'').trim().split(/\s+/).length;
-            return { id:encodeURIComponent(title), title, coverImg, dateStr:file.date,
+            return { id:encodeURIComponent(lang+'::'+title), title, coverImg, dateStr:file.date,
                 dateFormatted:new Date(file.date).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}),
-                content:rawContent, tags:[...new Set(tags)].filter(t=>t.toUpperCase()!=='TMP'), wordCount };
+                content:rawContent, tags:[...new Set(tags)].filter(t=>t.toUpperCase()!=='TMP'), wordCount,
+                lang: lang||'en', pdfUrl };
         }
 
         function getGradientForTitle(title) {
@@ -900,8 +971,8 @@
             const post = sortedPosts.find(p=>p.id===card.dataset.id); if(!post) return;
             const visual = post.coverImg
                 ? `<img src="${post.coverImg}" class="md-card-img" loading="lazy">`
-                : `<div class="md-card-gradient" style="background:${getGradientForTitle(post.title)}">${post.title}</div>`;
-            card.innerHTML = `${visual}<div class="md-card-content"><h2 class="md-card-title">${post.title}</h2><div class="md-card-date"><span class="material-symbols-outlined" style="font-size:16px">schedule</span>${post.dateFormatted}<span style="margin-left:auto;font-size:0.8rem;background:var(--md-surface-variant);padding:2px 8px;border-radius:8px">${post.wordCount} words</span></div></div>`;
+                : `<div class="md-card-gradient${post.lang==='bn'?' bn-text':''}" style="background:${getGradientForTitle(post.title)}">${post.title}</div>`;
+            card.innerHTML = `${visual}<div class="md-card-content"><h2 class="md-card-title${post.lang==='bn'?' bn-text':''}">${post.title}</h2><div class="md-card-date"><span class="material-symbols-outlined" style="font-size:16px">schedule</span>${post.dateFormatted}<span style="margin-left:auto;font-size:0.8rem;background:var(--md-surface-variant);padding:2px 8px;border-radius:8px">${post.wordCount} words</span></div></div>`;
             card.classList.remove('card-placeholder'); card.classList.add('populated');
         }
 
@@ -1117,15 +1188,20 @@
 
         function checkHashAndRoute() {
             const hash=window.location.hash;
-            if(hash.startsWith('#share=')) { const p=allPosts.find(p=>p.title===decodeURIComponent(hash.split('=')[1])); if(p) openPost(p); }
+            if(hash.startsWith('#share=')) {
+                const wanted=decodeURIComponent(hash.split('=')[1]);
+                const p = postsByLang.en.find(p=>p.title===wanted) || postsByLang.bn.find(p=>p.title===wanted);
+                if(p) { if(p.lang!==currentLang) switchLanguage(p.lang); openPost(p); }
+            }
         }
 
         // ── Reader ────────────────────────────────────────────────────────────
         function openPost(post) {
             currentPost=post;
-            currentTranslationLang='en';
+            currentTranslationLang=getSourceLangCode(post); currentTranslationLangName=getSourceLangName(post);
             resetActionBar();
             renderPostIntoReader(post.title, post.content, false);
+            applyReaderLangFont(currentTranslationLang);
             const imgEl=document.getElementById('reader-header-img'), gradEl=document.getElementById('reader-header-gradient');
             if(post.coverImg){ imgEl.src=post.coverImg; imgEl.style.display='block'; gradEl.style.display='none'; }
             else { imgEl.style.display='none'; gradEl.style.background=getGradientForTitle(post.title); gradEl.textContent=post.title; gradEl.style.display='flex'; }
@@ -1134,6 +1210,15 @@
             post.tags.forEach(t=>{ const sp=document.createElement('span'); sp.className='tag-pill'; sp.textContent=`#${t}`; tc.appendChild(sp); });
             renderTranslationBadge();
             showView('reader-view'); updateReadingGuide();
+        }
+
+        // Toggles the Bengali font stack on the reader title/body depending on which
+        // language is currently displayed (original Bangla, or a translation into Bangla).
+        function applyReaderLangFont(langCode) {
+            const isBn = langCode==='bn';
+            const t=document.getElementById('reader-title'), b=document.getElementById('reader-body');
+            if(t) t.classList.toggle('bn-text', isBn);
+            if(b) b.classList.toggle('bn-text', isBn);
         }
 
         // Renders title/body markdown into the reader, stripping DCP tags. Used for both
@@ -1341,7 +1426,9 @@
         function populateLangPickerList(filter) {
             const list=document.getElementById('lang-picker-list');
             const f=(filter||'').trim().toLowerCase();
-            const matches = f ? TRANSLATE_LANGUAGES.filter(l=>l.name.toLowerCase().includes(f)) : TRANSLATE_LANGUAGES;
+            const sourceLang=getSourceLangCode(currentPost);
+            const pool = TRANSLATE_LANGUAGES.filter(l=>l.code!==sourceLang);
+            const matches = f ? pool.filter(l=>l.name.toLowerCase().includes(f)) : pool;
             if(!matches.length) { list.innerHTML='<div class="lang-picker-empty">No languages match your search.</div>'; return; }
             list.innerHTML='';
             matches.forEach(l=>{
@@ -1407,7 +1494,10 @@
 
         async function openTranslateModal() {
             if(!currentPost) return;
-            if(!selectedTargetLang) selectedTargetLang = TRANSLATE_LANGUAGES.find(l=>l.code==='es') || TRANSLATE_LANGUAGES[0];
+            const sourceLang=getSourceLangCode(currentPost);
+            if(!selectedTargetLang || selectedTargetLang.code===sourceLang) {
+                selectedTargetLang = TRANSLATE_LANGUAGES.find(l=>l.code==='es' && l.code!==sourceLang) || TRANSLATE_LANGUAGES.find(l=>l.code!==sourceLang);
+            }
             updateTargetLangDisplay();
             document.getElementById('translate-status').style.display='none';
             document.getElementById('translate-go-btn').style.display='flex';
@@ -1432,8 +1522,9 @@
             statusEl.style.display='block';
 
             try {
-                const translatedTitle = await translateText(currentPost.title, langCode);
-                const translatedBody  = await translateMarkdown(currentPost.content, langCode);
+                const sourceLang=getSourceLangCode(currentPost);
+                const translatedTitle = await translateText(currentPost.title, langCode, sourceLang);
+                const translatedBody  = await translateMarkdown(currentPost.content, langCode, sourceLang);
                 useQuota(compChars);
                 await saveTranslation(currentPost.id, langCode, langName, translatedTitle, translatedBody, compChars);
                 statusEl.style.display='none'; document.getElementById('translate-go-btn').style.display='flex';
@@ -1450,25 +1541,28 @@
 
         async function loadTranslation(langCode, langName) {
             if(!currentPost) return;
-            if(langCode==='en') { revertToOriginal(); return; }
+            if(langCode===getSourceLangCode(currentPost)) { revertToOriginal(); return; }
             const rec = await getTranslation(currentPost.id, langCode);
             if(!rec) { showToast('Translation not found'); return; }
             currentTranslationLang=langCode; currentTranslationLangName=langName||rec.langName;
             renderPostIntoReader(rec.title, rec.content, true);
+            applyReaderLangFont(langCode);
             renderTranslationBadge();
         }
 
         function revertToOriginal() {
             if(!currentPost) return;
-            currentTranslationLang='en'; currentTranslationLangName='English';
+            currentTranslationLang=getSourceLangCode(currentPost); currentTranslationLangName=getSourceLangName(currentPost);
             renderPostIntoReader(currentPost.title, currentPost.content, true);
+            applyReaderLangFont(currentTranslationLang);
             renderTranslationBadge();
         }
 
         function renderTranslationBadge() {
             const wrap=document.getElementById('translation-badge-wrap'); if(!wrap) return;
             wrap.innerHTML='';
-            if(currentTranslationLang && currentTranslationLang!=='en') {
+            const sourceLang=getSourceLangCode(currentPost), sourceName=getSourceLangName(currentPost);
+            if(currentTranslationLang && currentTranslationLang!==sourceLang) {
                 const btn=document.createElement('button');
                 btn.className='translation-badge';
                 btn.innerHTML=`<span class="material-symbols-outlined">translate</span> Translated to ${currentTranslationLangName} — tap to view original`;
@@ -1478,10 +1572,10 @@
         }
 
         // ── Translation: MyMemory API calls ──────────────────────────────────
-        async function translateChunk(text, targetLang) {
+        async function translateChunk(text, targetLang, sourceLang) {
             const email=getTranslateEmail();
             const emailParam = (email && isValidEmail(email)) ? `&de=${encodeURIComponent(email)}` : '';
-            const url=`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|${targetLang}${emailParam}`;
+            const url=`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLang||'en'}|${targetLang}${emailParam}`;
             const res=await fetch(url);
             if(!res.ok) throw new Error('Translate API error');
             const data=await res.json();
@@ -1498,14 +1592,14 @@
             if(cur) chunks.push(cur);
             return chunks.length ? chunks : [text];
         }
-        async function translateText(text, targetLang) {
+        async function translateText(text, targetLang, sourceLang) {
             if(!text || !text.trim()) return text;
             const chunks=chunkText(text, 480);
             const out=[];
-            for(const c of chunks) { out.push(await translateChunk(c, targetLang)); }
+            for(const c of chunks) { out.push(await translateChunk(c, targetLang, sourceLang)); }
             return out.join(' ');
         }
-        async function translateMarkdown(md, targetLang) {
+        async function translateMarkdown(md, targetLang, sourceLang) {
             const blocks=md.split(/\n{2,}/);
             const translatedBlocks=[];
             for(const block of blocks) {
@@ -1515,7 +1609,7 @@
                 const headerMatch=protectedBlock.match(/^(#{1,6}\s+|>\s+|[-*]\s+|\d+\.\s+)/);
                 let prefix='', body=protectedBlock;
                 if(headerMatch) { prefix=headerMatch[0]; body=protectedBlock.slice(prefix.length); }
-                let translatedBody = body.trim() ? await translateText(body, targetLang) : body;
+                let translatedBody = body.trim() ? await translateText(body, targetLang, sourceLang) : body;
                 let restored = prefix+translatedBody;
                 placeholders.forEach((p,i)=>{ restored=restored.replace(`%%PH${i}%%`, p); });
                 translatedBlocks.push(restored);
@@ -1567,7 +1661,11 @@
         async function openDownloadModal() {
             if(!currentPost) return;
             document.getElementById('download-modal').classList.add('open');
-            await populateDownloadLanguageOptions();
+            const isArchived = !!currentPost.pdfUrl;
+            document.getElementById('dl-archive-hint').style.display = isArchived ? 'block' : 'none';
+            document.getElementById('dl-options-wrap').style.display = isArchived ? 'none' : '';
+            if(isArchived) { document.getElementById('dl-lang-row').style.display='none'; }
+            else { await populateDownloadLanguageOptions(); }
         }
 
         async function populateDownloadLanguageOptions() {
@@ -1576,12 +1674,39 @@
             try { translations = await getAllTranslationsForPost(currentPost.id); } catch(e) { translations=[]; }
             if(!translations.length) { wrap.style.display='none'; sel.innerHTML=''; return; }
             wrap.style.display='block';
-            sel.innerHTML = `<option value="en">Original (English)</option>` + translations.map(t=>`<option value="${t.langCode}">${t.langName}</option>`).join('');
-            sel.value = (currentTranslationLang && currentTranslationLang!=='en') ? currentTranslationLang : 'en';
+            const sourceLang=getSourceLangCode(currentPost), sourceName=getSourceLangName(currentPost);
+            sel.innerHTML = `<option value="${sourceLang}">Original (${sourceName})</option>` + translations.map(t=>`<option value="${t.langCode}">${t.langName}</option>`).join('');
+            sel.value = (currentTranslationLang && currentTranslationLang!==sourceLang) ? currentTranslationLang : sourceLang;
+        }
+
+        // Compositions carrying a <PDF>url</PDF> tag skip local generation entirely — the
+        // already-made file is fetched straight from the /DocuComp/archive folder instead.
+        async function downloadArchivedPDF() {
+            closeModals();
+            showPDFProgress('Fetching from archive…');
+            try {
+                const res = await fetch(currentPost.pdfUrl);
+                if(!res.ok) throw new Error('Archive fetch failed');
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${(currentPost.title||'composition').replace(/[^\w\- ]+/g,'').trim() || 'composition'}.pdf`;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                setTimeout(()=>URL.revokeObjectURL(url), 4000);
+                hidePDFProgress();
+                showToast('Downloaded from archive');
+            } catch(err) {
+                console.error('Archive download failed:', err);
+                hidePDFProgress();
+                showToast('Could not fetch from archive — opening it directly');
+                window.open(currentPost.pdfUrl, '_blank');
+            }
         }
 
         async function downloadPDF() {
             if(!currentPost) return;
+            if(currentPost.pdfUrl) { await downloadArchivedPDF(); return; }
             closeModals();
             const inclImages  = document.getElementById('dl-images').checked;
             const inclBg      = document.getElementById('dl-bgcolor').checked;
@@ -1589,12 +1714,13 @@
             const inclJustify = document.getElementById('dl-justify').checked;
             const alignMode   = inclJustify ? 'justify' : 'left';
             const langSel = document.getElementById('dl-language');
-            const dlLangCode = langSel && langSel.value ? langSel.value : 'en';
+            const sourceLang = getSourceLangCode(currentPost);
+            const dlLangCode = langSel && langSel.value ? langSel.value : sourceLang;
             showPDFProgress('Preparing…');
             await new Promise(r=>setTimeout(r,180));
             try {
                 let pdfTitle = currentPost.title, pdfContent = currentPost.content;
-                if(dlLangCode!=='en') {
+                if(dlLangCode!==sourceLang) {
                     const rec = await getTranslation(currentPost.id, dlLangCode);
                     if(rec) { pdfTitle=rec.title; pdfContent=rec.content; }
                 }
