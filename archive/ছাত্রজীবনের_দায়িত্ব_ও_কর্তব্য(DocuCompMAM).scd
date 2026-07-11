@@ -95,6 +95,6 @@
     "version": "3.1",
     "app": "Sugarcane Editor",
     "pageCount": 6,
-    "lockImages": false
+    "lockImages": true
   }
 }
