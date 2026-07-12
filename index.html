@@ -204,8 +204,8 @@
         .modal-overlay.open .modal-content { transform: scale(1); }
         .modal-title { font-size: 1.5rem; color: var(--md-primary); margin-top: 0; margin-bottom: 16px; }
         .modal-text { color: var(--md-on-surface); line-height: 1.6; margin-bottom: 24px; }
-        .toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--md-on-surface); color: var(--md-surface); padding: 12px 24px; border-radius: 32px; font-weight: 500; z-index: 2000; transition: transform 0.3s cubic-bezier(0.2,0,0,1); }
-        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast { position: fixed; bottom: 32px; left: 50%; max-width: min(90vw, 480px); text-align: center; transform: translateX(-50%) translateY(20px); opacity: 0; visibility: hidden; background: var(--md-on-surface); color: var(--md-surface); padding: 12px 24px; border-radius: 32px; font-weight: 500; z-index: 2000; transition: transform 0.3s cubic-bezier(0.2,0,0,1), opacity 0.3s ease, visibility 0s linear 0.3s; }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; visibility: visible; transition: transform 0.3s cubic-bezier(0.2,0,0,1), opacity 0.3s ease, visibility 0s linear 0s; }
         .status-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 64px 24px; color: var(--md-outline); text-align: center; }
         .spinner { width: 48px; height: 48px; border: 4px solid var(--md-surface-variant); border-top-color: var(--md-primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px; }
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -255,6 +255,8 @@
         #qr-offscreen { position: absolute; left: -9999px; top: -9999px; width: 128px; height: 128px; }
 
         /* ── Section title row + Refresh ─────────────────────────────────── */
+        .home-top-bar { display: flex; align-items: center; margin-bottom: 8px; }
+        .archive-wrap { position: relative; display: flex; align-items: center; gap: 10px; }
         .section-title-row { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid var(--md-surface-variant); padding-bottom: 8px; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
         .section-title-row .section-title { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
         .section-title-row-actions { display: flex; align-items: center; gap: 12px; margin-left: auto; }
@@ -338,6 +340,8 @@
         /* Reader "magic" transition when swapping translations */
         .reader-fading-out { animation: readerFadeOut 0.35s ease forwards; }
         .reader-fading-in { animation: readerFadeIn 0.55s ease forwards; }
+        .summarizing-indicator { display: flex; align-items: center; gap: 10px; padding: 32px 4px; color: var(--md-outline); font-size: 0.95rem; font-weight: 500; }
+        .summarizing-indicator .material-symbols-outlined { animation: spin 1.1s linear infinite; }
         @keyframes readerFadeOut { to { opacity: 0; filter: blur(8px); transform: translateY(-8px); } }
         @keyframes readerFadeIn { from { opacity: 0; filter: blur(8px); transform: translateY(8px); } to { opacity: 1; filter: blur(0); transform: translateY(0); } }
 
@@ -359,6 +363,16 @@
     <main>
         <!-- Home View -->
         <div id="home-view" class="view active">
+            <div class="home-top-bar">
+                <div class="archive-wrap" id="archive-wrap">
+                    <button class="icon-btn-small" id="archive-btn" onclick="openArchiveModal()" title="Local archive">
+                        <span class="material-symbols-outlined">inventory_2</span>
+                    </button>
+                    <button class="icon-btn-small" id="refresh-btn" onclick="refreshCompositions()" title="Refresh compositions">
+                        <span class="material-symbols-outlined">refresh</span>
+                    </button>
+                </div>
+            </div>
             <div class="home-center-wrap">
                 <h1 class="brand-title"><span class="brand-docu">Docu</span><span class="brand-comp">Comp</span></h1>
                 <div class="main-search-wrapper">
@@ -378,13 +392,10 @@
                 <h2 class="section-title" style="border-bottom:none;padding-bottom:0;margin-bottom:0;">Recent Compositions</h2>
                 <div class="section-title-row-actions">
                     <div class="lang-toggle" id="lang-toggle">
-                        <div class="lang-toggle-thumb bn" id="lang-toggle-thumb"></div>
-                        <button class="lang-toggle-opt" data-lang="en" onclick="switchLanguage('en')">English</button>
-                        <button class="lang-toggle-opt active" data-lang="bn" onclick="switchLanguage('bn')">বাংলা</button>
+                        <div class="lang-toggle-thumb" id="lang-toggle-thumb"></div>
+                        <button class="lang-toggle-opt active" data-lang="en" onclick="switchLanguage('en')">English</button>
+                        <button class="lang-toggle-opt" data-lang="bn" onclick="switchLanguage('bn')">বাংলা</button>
                     </div>
-                    <button class="icon-btn-small" id="refresh-btn" onclick="refreshCompositions()" title="Refresh compositions">
-                        <span class="material-symbols-outlined">refresh</span>
-                    </button>
                 </div>
             </div>
             <div class="grid" id="home-grid"></div>
@@ -513,6 +524,7 @@
                     <button class="btn-tonal" onclick="openDownloadModal()"><span class="material-symbols-outlined">picture_as_pdf</span> Download</button>
                     <button class="btn-tonal" id="expand-btn" onclick="expandActionBar()" title="More options"><span class="material-symbols-outlined">unfold_more</span> Expand</button>
                     <button class="btn-tonal expand-extra" onclick="openTranslateModal()"><span class="material-symbols-outlined">translate</span> Translate</button>
+                    <button class="btn-tonal expand-extra" id="summarize-btn" onclick="summarizeComposition()"><span class="material-symbols-outlined">summarize</span> Summarize</button>
                 </div>
                 <div id="translation-badge-wrap"></div>
                 <div id="reader-body" class="reader-content"></div>
@@ -595,30 +607,49 @@
                 <label for="reading-guide-toggle" style="margin:0;cursor:pointer;">Reading Guide</label>
                 <label class="switch"><input type="checkbox" id="reading-guide-toggle"><span class="slider"></span></label>
             </div>
-            <div class="settings-group" style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;">
-                <label for="translate-limit-toggle" style="margin:0;cursor:pointer;">Increase Translation Limit</label>
-                <label class="switch"><input type="checkbox" id="translate-limit-toggle" onchange="onTranslateLimitToggle()"><span class="slider"></span></label>
-            </div>
-            <div id="translate-email-row" style="display:none;margin-top:14px;">
-                <p style="font-size:0.8rem;color:var(--md-outline);margin:0 0 10px;">Give us your email and your daily translation budget goes from 4,500 to 45,000 characters.</p>
-                <div id="translate-email-input-wrap" class="email-input-wrap">
-                    <span class="material-symbols-outlined email-input-icon">mail</span>
-                    <input type="email" id="translate-email-input" placeholder="you@example.com" oninput="clearEmailError()">
+            <div id="home-only-settings-group">
+                <div class="settings-group" style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;">
+                    <label for="translate-limit-toggle" style="margin:0;cursor:pointer;">Increase Translation Limit</label>
+                    <label class="switch"><input type="checkbox" id="translate-limit-toggle" onchange="onTranslateLimitToggle()"><span class="slider"></span></label>
                 </div>
-                <div id="translate-email-error" style="display:none;color:var(--md-secondary);font-size:0.78rem;margin-top:6px;font-weight:600;"></div>
-                <button class="btn-primary" id="translate-email-save-btn" onclick="saveTranslateEmail()" style="width:100%;justify-content:center;margin-top:10px;padding:9px;">
-                    <span class="material-symbols-outlined">check</span> Save Email
-                </button>
-                <div id="translate-email-saved-chip" class="email-saved-chip" style="display:none;">
-                    <span class="material-symbols-outlined" style="color:var(--md-primary);">verified</span>
-                    <span class="email-saved-text" id="translate-email-saved-text"></span>
-                    <button type="button" class="email-edit-btn" onclick="editTranslateEmail()" title="Edit email"><span class="material-symbols-outlined">edit</span></button>
+                <div class="settings-group" style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;">
+                    <label for="auto-archive-toggle" style="margin:0;cursor:pointer;">Auto Update Local Archive</label>
+                    <label class="switch"><input type="checkbox" id="auto-archive-toggle" checked onchange="onAutoArchiveToggle()"><span class="slider"></span></label>
+                </div>
+                <div id="translate-email-row" style="display:none;margin-top:14px;">
+                    <p style="font-size:0.8rem;color:var(--md-outline);margin:0 0 10px;">Give us your email and your daily translation budget goes from 4,500 to 45,000 characters.</p>
+                    <div id="translate-email-input-wrap" class="email-input-wrap">
+                        <span class="material-symbols-outlined email-input-icon">mail</span>
+                        <input type="email" id="translate-email-input" placeholder="you@example.com" oninput="clearEmailError()">
+                    </div>
+                    <div id="translate-email-error" style="display:none;color:var(--md-secondary);font-size:0.78rem;margin-top:6px;font-weight:600;"></div>
+                    <button class="btn-primary" id="translate-email-save-btn" onclick="saveTranslateEmail()" style="width:100%;justify-content:center;margin-top:10px;padding:9px;">
+                        <span class="material-symbols-outlined">check</span> Save Email
+                    </button>
+                    <div id="translate-email-saved-chip" class="email-saved-chip" style="display:none;">
+                        <span class="material-symbols-outlined" style="color:var(--md-primary);">verified</span>
+                        <span class="email-saved-text" id="translate-email-saved-text"></span>
+                        <button type="button" class="email-edit-btn" onclick="editTranslateEmail()" title="Edit email"><span class="material-symbols-outlined">edit</span></button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Modals -->
+    <div id="archive-modal" class="modal-overlay" onclick="if(event.target===this)closeModals()">
+        <div class="modal-content" style="max-width:400px;">
+            <h2 class="modal-title" style="display:flex;align-items:center;gap:10px;justify-content:center;">
+                <span class="material-symbols-outlined">inventory_2</span> Local Archive
+            </h2>
+            <p class="modal-text" id="archive-modal-date" style="margin-bottom:16px;">No archive saved on this device yet.</p>
+            <div style="text-align:left;background:var(--md-surface-container-low);border-radius:16px;padding:4px 20px;margin-bottom:24px;">
+                <div class="dl-row"><span>English compositions</span><strong id="archive-count-en">0</strong></div>
+                <div class="dl-row"><span>বাংলা compositions</span><strong id="archive-count-bn">0</strong></div>
+            </div>
+            <button class="btn-tonal" onclick="closeModals()" style="width:100%;justify-content:center;">Close</button>
+        </div>
+    </div>
     <div id="info-modal" class="modal-overlay" onclick="if(event.target===this)closeModals()">
         <div class="modal-content" style="max-width:420px;">
             <div class="info-tabs">
@@ -758,6 +789,7 @@
     <script>
         let allPosts = [], sortedPosts = [], currentPost = null, currentView = 'home-view', placeholderInterval;
         let searchResults = [], currentPage = 1, activeTagFilters = new Set();
+        let isSummarized = false;
         const RESULTS_PER_PAGE = 10;
         const REPO = 'mahi902/DocuComp';
         const API_BASE = `https://api.github.com/repos/${REPO}`;
@@ -765,7 +797,7 @@
         // ── Multi-language composition storage ───────────────────────────────
         // English lives in /posts, Bangla lives in /bdposts. The homepage grid always
         // shows whichever language is active via the slider next to "Recent Compositions".
-        let currentLang = 'bn';
+        let currentLang = 'en';
         const postsByLang = { en: [], bn: [] };
         function getSourceLangCode(post) { return (post && post.lang==='bn') ? 'bn' : 'en'; }
         function getSourceLangName(post) { return (post && post.lang==='bn') ? 'Bengali' : 'English'; }
@@ -831,19 +863,21 @@
         // ── Data ──────────────────────────────────────────────────────────────
         async function initBlog() {
             const grid = document.getElementById('home-grid');
-            grid.innerHTML = `<div class="status-container" style="grid-column:1/-1"><div class="spinner"></div><p>Syncing compositions...</p></div>`;
-            try {
-                const [enPosts, bnPosts] = await Promise.all([
-                    fetchPostsFromDir('posts', 'en'),
-                    fetchPostsFromDir('bdposts', 'bn')
-                ]);
-                postsByLang.en = enPosts; postsByLang.bn = bnPosts;
-                if(!enPosts.length && !bnPosts.length) { grid.innerHTML='<div class="status-container" style="grid-column:1/-1"><p>No compositions found.</p></div>'; return; }
-                allPosts = postsByLang[currentLang];
-                sortedPosts = [...allPosts];
-                updateLangToggleUI();
-                updateHomeStats(); startPlaceholderRotation(); renderHomeGrid(); checkHashAndRoute(); populateStructureTagSource();
-            } catch(err) { console.warn('Live API failed:', err); loadMockData(); }
+            const snap = await getArchiveSnapshot();
+            const hasArchiveData = !!(snap && (((snap.en||[]).length) || ((snap.bn||[]).length)));
+            if(hasArchiveData) {
+                // Show what's archived on-device immediately, then quietly refresh from the live API —
+                // unless the person has turned off automatic background updates in Settings.
+                applyPostsFromSnapshot(snap, true);
+                if(getAutoArchiveEnabled()) liveFetchAndApply(false);
+            } else {
+                grid.innerHTML = `<div class="status-container" style="grid-column:1/-1"><div class="spinner"></div><p>Syncing compositions...</p></div>`;
+                const ok = await liveFetchAndApply(true);
+                if(!ok) {
+                    const used = await tryLoadFromArchive(true);
+                    if(!used) loadMockData();
+                }
+            }
         }
 
         async function fetchPostsFromDir(dir, lang) {
@@ -859,6 +893,39 @@
                 }
                 return rawData.map(f => processRawPost(f, lang));
             } catch(e) { console.warn(`Dir fetch failed for ${dir}:`, e); return []; }
+        }
+
+        // Applies a fetched or archived set of posts to the UI. routeHash controls whether a
+        // pending #share= link should be opened — only relevant for the first render of a load,
+        // not for a silent background refresh happening while the person may already be reading.
+        function applyPosts(enPosts, bnPosts, routeHash) {
+            postsByLang.en = enPosts; postsByLang.bn = bnPosts;
+            allPosts = postsByLang[currentLang];
+            sortedPosts = [...allPosts];
+            updateLangToggleUI();
+            updateHomeStats(); startPlaceholderRotation(); renderHomeGrid();
+            if(routeHash) checkHashAndRoute();
+            populateStructureTagSource();
+        }
+        function applyPostsFromSnapshot(snap, routeHash) {
+            lastArchiveTs = snap.ts;
+            applyPosts(snap.en || [], snap.bn || [], routeHash);
+            updateArchiveBadge();
+        }
+
+        // Fetches live compositions and applies them. An empty result (both languages) is treated
+        // as a fetch error rather than "no compositions" — it never overwrites a good archive.
+        async function liveFetchAndApply(routeHash) {
+            try {
+                const [enPosts, bnPosts] = await Promise.all([
+                    fetchPostsFromDir('posts', 'en'),
+                    fetchPostsFromDir('bdposts', 'bn')
+                ]);
+                if(!enPosts.length && !bnPosts.length) return false;
+                applyPosts(enPosts, bnPosts, routeHash);
+                await saveArchiveSnapshot(postsByLang);
+                return true;
+            } catch(err) { console.warn('Live fetch failed:', err); return false; }
         }
 
         // Switches the homepage grid between English and Bangla compositions via the slider.
@@ -884,14 +951,76 @@
         function refreshCompositions() {
             const btn = document.getElementById('refresh-btn');
             if(btn) btn.classList.add('spinning');
-            initBlog().finally(() => {
-                if(btn) btn.classList.remove('spinning');
-                showToast('Compositions refreshed');
-            });
+            liveFetchAndApply(false).then(ok=>{
+                showToast(ok ? 'Compositions refreshed' : 'Could not refresh — showing last archive');
+            }).finally(() => { if(btn) btn.classList.remove('spinning'); });
         }
 
         function loadMockData() {
             document.getElementById('home-grid').innerHTML = `<div class="status-container" style="grid-column:1/-1"><p>Could not load compositions. Please check your connection.</p></div>`;
+        }
+
+        // ── Local archive (IndexedDB) ────────────────────────────────────────
+        // Every time compositions are fetched live, a snapshot is saved on-device so the app
+        // can still show the last known set of compositions when a live fetch isn't possible.
+        const ARCH_DB_NAME='docucomp_archive_db', ARCH_DB_VERSION=1, ARCH_STORE='archive';
+        let lastArchiveTs=null;
+        function openArchiveDB() {
+            return new Promise((resolve,reject)=>{
+                const req=indexedDB.open(ARCH_DB_NAME, ARCH_DB_VERSION);
+                req.onupgradeneeded=(e)=>{ const db=e.target.result; if(!db.objectStoreNames.contains(ARCH_STORE)) db.createObjectStore(ARCH_STORE,{keyPath:'key'}); };
+                req.onsuccess=()=>resolve(req.result); req.onerror=()=>reject(req.error);
+            });
+        }
+        async function saveArchiveSnapshot(byLang) {
+            try {
+                const db=await openArchiveDB();
+                const ts=Date.now();
+                await new Promise((resolve,reject)=>{
+                    const tx=db.transaction(ARCH_STORE,'readwrite');
+                    tx.objectStore(ARCH_STORE).put({key:'latest', en:byLang.en, bn:byLang.bn, ts});
+                    tx.oncomplete=()=>resolve(); tx.onerror=()=>reject(tx.error);
+                });
+                lastArchiveTs=ts; updateArchiveBadge();
+            } catch(e) { console.warn('Archive save failed:', e); }
+        }
+        async function getArchiveSnapshot() {
+            try {
+                const db=await openArchiveDB();
+                return await new Promise((resolve,reject)=>{
+                    const tx=db.transaction(ARCH_STORE,'readonly');
+                    const req=tx.objectStore(ARCH_STORE).get('latest');
+                    req.onsuccess=()=>resolve(req.result||null); req.onerror=()=>reject(req.error);
+                });
+            } catch(e) { console.warn('Archive read failed:', e); return null; }
+        }
+        // Only used when a live fetch genuinely fails and nothing is on screen yet.
+        async function tryLoadFromArchive(routeHash) {
+            const snap = await getArchiveSnapshot();
+            if(!snap || (!(snap.en||[]).length && !(snap.bn||[]).length)) return false;
+            applyPostsFromSnapshot(snap, routeHash);
+            showToast('Offline — showing the last archived compositions');
+            return true;
+        }
+        function updateArchiveBadge() {
+            const dateEl=document.getElementById('archive-modal-date');
+            const enEl=document.getElementById('archive-count-en'), bnEl=document.getElementById('archive-count-bn');
+            if(enEl) enEl.textContent = (postsByLang.en||[]).length;
+            if(bnEl) bnEl.textContent = (postsByLang.bn||[]).length;
+            if(!dateEl) return;
+            if(lastArchiveTs) {
+                const d=new Date(lastArchiveTs);
+                dateEl.textContent = `Last archived ${d.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'})} at ${d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}`;
+            } else {
+                dateEl.textContent = 'No archive saved on this device yet.';
+            }
+        }
+        async function openArchiveModal() {
+            // Refresh the counts/date shown in case the in-memory state is stale (e.g. modal
+            // opened before the very first archive write completes).
+            if(!lastArchiveTs) { const snap=await getArchiveSnapshot(); if(snap) lastArchiveTs=snap.ts; }
+            updateArchiveBadge();
+            document.getElementById('archive-modal').classList.add('open');
         }
 
         function processRawPost(file, lang) {
@@ -910,6 +1039,13 @@
             const pdfM = rawContent.match(pdfRe);
             if(pdfM && pdfM[1] && pdfM[1].trim()) pdfUrl = pdfM[1].trim();
             rawContent = rawContent.replace(pdfRe, '');
+            // Extract a ready-made summary from a <SUMM>...</SUMM> tag, if present. Compositions
+            // carrying this tag get a "Summarize" button in the reader that swaps in this text.
+            let summary = null;
+            const summRe = /(?:<|&lt;)SUMM(?:>|&gt;)([\s\S]*?)(?:<|&lt;)\/SUMM(?:>|&gt;)/i;
+            const summM = rawContent.match(summRe);
+            if(summM && summM[1] && summM[1].trim()) summary = summM[1].trim();
+            rawContent = rawContent.replace(summRe, '');
             let coverImg = null;
             const imgM = rawContent.match(/!\[.*?\]\((.*?)\)/);
             if(imgM) { coverImg = imgM[1]; rawContent = rawContent.replace(/!\[.*?\]\((.*?)\)/,''); }
@@ -917,7 +1053,7 @@
             return { id:encodeURIComponent(lang+'::'+title), title, coverImg, dateStr:file.date,
                 dateFormatted:new Date(file.date).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}),
                 content:rawContent, tags:[...new Set(tags)].filter(t=>t.toUpperCase()!=='TMP'), wordCount,
-                lang: lang||'en', pdfUrl };
+                lang: lang||'en', pdfUrl, summary };
         }
 
         function getGradientForTitle(title) {
@@ -1199,7 +1335,10 @@
         function openPost(post) {
             currentPost=post;
             currentTranslationLang=getSourceLangCode(post); currentTranslationLangName=getSourceLangName(post);
+            isSummarized=false;
             resetActionBar();
+            const summBtn=document.getElementById('summarize-btn');
+            if(summBtn) summBtn.dataset.available = post.summary ? 'true' : 'false';
             renderPostIntoReader(post.title, post.content, false);
             applyReaderLangFont(currentTranslationLang);
             const imgEl=document.getElementById('reader-header-img'), gradEl=document.getElementById('reader-header-gradient');
@@ -1258,11 +1397,34 @@
             document.getElementById('analysis-modal').classList.add('open');
         }
 
+        // ── Summarize (uses a <SUMM> tag baked into the composition's markdown) ─
+        async function summarizeComposition() {
+            if(!currentPost || !currentPost.summary || isSummarized) return;
+            const btn=document.getElementById('summarize-btn');
+            const bodyEl=document.getElementById('reader-body'), titleEl=document.getElementById('reader-title');
+            if(btn) btn.disabled=true;
+            bodyEl.classList.add('reader-fading-out'); titleEl.classList.add('reader-fading-out');
+            await new Promise(r=>setTimeout(r,350));
+            bodyEl.innerHTML = `<div class="summarizing-indicator"><span class="material-symbols-outlined">summarize</span> Summarizing composition…</div>`;
+            bodyEl.classList.remove('reader-fading-out'); titleEl.classList.remove('reader-fading-out');
+            bodyEl.classList.add('reader-fading-in'); titleEl.classList.add('reader-fading-in');
+            setTimeout(()=>{ bodyEl.classList.remove('reader-fading-in'); titleEl.classList.remove('reader-fading-in'); }, 400);
+            await new Promise(r=>setTimeout(r, 1000+Math.random()*600));
+            isSummarized=true;
+            renderPostIntoReader(currentPost.title, currentPost.summary, true);
+            applyReaderLangFont(currentTranslationLang);
+            renderTranslationBadge();
+            if(btn) btn.disabled=false;
+        }
+
         // ── Expand action bar (reveals extra buttons inline, in the same scrollable row) ──
         function expandActionBar() {
             const btn=document.getElementById('expand-btn');
             if(btn) btn.style.display='none';
-            document.querySelectorAll('.expand-extra').forEach(b=>b.style.display='flex');
+            document.querySelectorAll('.expand-extra').forEach(b=>{
+                if(b.id==='summarize-btn' && b.dataset.available!=='true') return;
+                b.style.display='flex';
+            });
         }
         function resetActionBar() {
             const btn=document.getElementById('expand-btn');
@@ -1350,6 +1512,34 @@
             toggle.checked = valid;
             document.getElementById('translate-email-row').style.display = valid ? 'block' : 'none';
             if(valid) showSavedEmailState(email); else showEmailInputState('');
+            const archToggle=document.getElementById('auto-archive-toggle');
+            if(archToggle) archToggle.checked = getAutoArchiveEnabled();
+            updateSettingsPanelContext();
+        }
+
+        // The Reading Suite panel is shared verbatim between the Home page (Info → Settings tab)
+        // and Reader view (palette FAB). Increase Translation Limit and Auto Update Local Archive
+        // only make sense on the Home page, so they're hidden whenever the panel is in reader context.
+        function updateSettingsPanelContext() {
+            const inner=document.getElementById('settings-panel-inner');
+            const slot=document.getElementById('info-settings-slot');
+            const group=document.getElementById('home-only-settings-group');
+            if(!inner || !group) return;
+            group.style.display = (slot && inner.parentElement===slot) ? '' : 'none';
+        }
+
+        // ── Auto Update Local Archive (persisted on-device) ─────────────────
+        function getAutoArchiveEnabled() {
+            try { const v=localStorage.getItem('docucomp_auto_archive'); return v===null ? true : v==='1'; }
+            catch(e) { return true; }
+        }
+        function setAutoArchiveEnabled(val) {
+            try { localStorage.setItem('docucomp_auto_archive', val ? '1' : '0'); } catch(e) {}
+        }
+        function onAutoArchiveToggle() {
+            const t=document.getElementById('auto-archive-toggle');
+            setAutoArchiveEnabled(t.checked);
+            showToast(t.checked ? 'Auto update enabled' : 'Auto update disabled — use refresh to update manually');
         }
 
         // ── Generic confirmation modal (used for destructive actions like deleting a translation) ──
@@ -1544,6 +1734,7 @@
             if(langCode===getSourceLangCode(currentPost)) { revertToOriginal(); return; }
             const rec = await getTranslation(currentPost.id, langCode);
             if(!rec) { showToast('Translation not found'); return; }
+            isSummarized=false;
             currentTranslationLang=langCode; currentTranslationLangName=langName||rec.langName;
             renderPostIntoReader(rec.title, rec.content, true);
             applyReaderLangFont(langCode);
@@ -1552,6 +1743,7 @@
 
         function revertToOriginal() {
             if(!currentPost) return;
+            isSummarized=false;
             currentTranslationLang=getSourceLangCode(currentPost); currentTranslationLangName=getSourceLangName(currentPost);
             renderPostIntoReader(currentPost.title, currentPost.content, true);
             applyReaderLangFont(currentTranslationLang);
@@ -1561,6 +1753,14 @@
         function renderTranslationBadge() {
             const wrap=document.getElementById('translation-badge-wrap'); if(!wrap) return;
             wrap.innerHTML='';
+            if(isSummarized) {
+                const btn=document.createElement('button');
+                btn.className='translation-badge';
+                btn.innerHTML=`<span class="material-symbols-outlined">summarize</span> Summarized — tap to view original`;
+                btn.onclick=()=>revertToOriginal();
+                wrap.appendChild(btn);
+                return;
+            }
             const sourceLang=getSourceLangCode(currentPost), sourceName=getSourceLangName(currentPost);
             if(currentTranslationLang && currentTranslationLang!==sourceLang) {
                 const btn=document.createElement('button');
