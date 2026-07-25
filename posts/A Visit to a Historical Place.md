@@ -29,7 +29,7 @@ https://mahi902.github.io/DocuWritePro/sceditor.html#SRC=https://mahi902.github.
 </DCP>
 
 <PDF>
-https://mahi902.github.io/DocuWritePro/sceditor.html#SRC=https://mahi902.github.io/DocuComp/archive/A_Visit_to_a_Historical_Place.pdf
+https://mahi902.github.io/DocuComp/archive/A_Visit_to_a_Historical_Place.pdf
 </PDF>
 
 <SUMM>
