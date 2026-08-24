@@ -354,6 +354,187 @@
   
 </head>
 <body>
+    <script>
+    (function(){
+      'use strict';
+
+      const CORRECT_HASH = 'e9a82b29d0a309758a434777091f8c92673ba8853bc06a59f399b92f7ba361b7'; // sha256("6422")
+      const MAX_ATTEMPTS = 5;
+      const UNLOCK_DURATION_MS = 20 * 60 * 1000; // 20 minutes
+      const STORE_KEY = 'dc_pin_lock';
+      const SESSION_KEY = 'dc_pin_session';
+
+      async function sha256(str){
+        const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+        return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+      }
+
+      const today = () => new Date().toISOString().slice(0,10);
+      const HOLD_MS = 1500;
+      const BONUS_ATTEMPTS = 2;
+
+      function readStore(){
+        try{
+          const d = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
+          if (d.date === today()) return { date: d.date, count: d.count || 0, bonusUsed: !!d.bonusUsed };
+        }catch(e){}
+        return { date: today(), count: 0, bonusUsed: false };
+      }
+      function writeStore(s){ localStorage.setItem(STORE_KEY, JSON.stringify(s)); }
+      function getAttempts(){ return readStore().count; }
+      function bumpAttempts(){
+        const s = readStore();
+        s.count += 1;
+        writeStore(s);
+        return s.count;
+      }
+      // Hidden recovery: press-and-hold the bottom-right corner once locked out
+      // grants 2 bonus attempts for the day (one time only).
+      function grantBonusAttempts(){
+        const s = readStore();
+        if (s.count < MAX_ATTEMPTS || s.bonusUsed) return false;
+        s.count = Math.max(0, s.count - BONUS_ATTEMPTS);
+        s.bonusUsed = true;
+        writeStore(s);
+        return true;
+      }
+
+      // Session validity is only ever checked at load time (see bottom of file) —
+      // it is never polled while the page is open, so an expiry that passes mid-
+      // session won't interrupt anything until the next refresh.
+      function startSession(){
+        localStorage.setItem(SESSION_KEY, JSON.stringify({ expires: Date.now() + UNLOCK_DURATION_MS }));
+      }
+      function hasValidSession(){
+        try{
+          const s = JSON.parse(localStorage.getItem(SESSION_KEY) || '{}');
+          return typeof s.expires === 'number' && Date.now() < s.expires;
+        }catch(e){ return false; }
+      }
+      function clearSession(){ localStorage.removeItem(SESSION_KEY); }
+
+      let overlay, input, submitBtn, msgEl;
+
+      function buildOverlay(){
+        const style = document.createElement('style');
+        style.textContent = `
+          #pin-lock-overlay{position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;background:rgba(15,15,20,.55);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);font-family:var(--font-family,'Roboto',sans-serif);}
+          #pin-lock-box{background:var(--md-surface,#fff);color:var(--md-on-surface,#191c20);border-radius:20px;padding:36px 30px;width:270px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.35);}
+          #pin-lock-logo{font-size:1.6rem;font-weight:700;margin-bottom:22px;letter-spacing:-1px;}
+          #pin-lock-logo .brand-docu{color:var(--md-primary,#0b57d0);}
+          #pin-lock-logo .brand-comp{color:var(--md-secondary,#ea4335);}
+          #pin-lock-row{display:flex;align-items:center;gap:8px;border:2px solid #e1e2e8;border-radius:28px;padding:6px 6px 6px 18px;transition:border-color .2s;}
+          #pin-lock-row:focus-within{border-color:#0b57d0;}
+          #pin-lock-input{border:none;outline:none;flex:1;min-width:0;font-size:1.1rem;letter-spacing:4px;background:transparent;}
+          #pin-lock-submit{background:#0b57d0;border:none;color:#fff;width:36px;height:36px;border-radius:50%;flex-shrink:0;cursor:pointer;font-size:1rem;line-height:1;}
+          #pin-lock-submit:disabled{background:#9aa0a6;cursor:not-allowed;}
+          #pin-lock-msg{margin-top:12px;font-size:.82rem;color:#ea4335;min-height:1.1em;}
+          #pin-lock-hotspot{position:fixed;bottom:0;right:0;width:64px;height:64px;z-index:1000000;background:transparent;}
+          html.pin-locked body > *:not(#pin-lock-overlay){filter:blur(14px);pointer-events:none;user-select:none;}
+        `;
+        document.head.appendChild(style);
+
+        overlay = document.createElement('div');
+        overlay.id = 'pin-lock-overlay';
+        overlay.innerHTML = `
+          <div id="pin-lock-box">
+            <div id="pin-lock-logo"><span class="brand-docu">Docu</span><span class="brand-comp">Comp</span></div>
+            <div id="pin-lock-row">
+              <input id="pin-lock-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="Enter PIN" autocomplete="off">
+              <button id="pin-lock-submit" aria-label="Unlock">&#10148;</button>
+            </div>
+            <div id="pin-lock-msg"></div>
+          </div>
+          <div id="pin-lock-hotspot"></div>`;
+        document.documentElement.appendChild(overlay);
+
+        input = overlay.querySelector('#pin-lock-input');
+        submitBtn = overlay.querySelector('#pin-lock-submit');
+        msgEl = overlay.querySelector('#pin-lock-msg');
+        const hotspot = overlay.querySelector('#pin-lock-hotspot');
+
+        let holdTimer = null;
+        const startHold = () => {
+          clearTimeout(holdTimer);
+          holdTimer = setTimeout(() => {
+            if (grantBonusAttempts()){
+              input.disabled = false;
+              submitBtn.disabled = false;
+              msgEl.style.color = '#0b8043';
+              msgEl.textContent = `${BONUS_ATTEMPTS} bonus attempts granted.`;
+              input.focus();
+            }
+          }, HOLD_MS);
+        };
+        const cancelHold = () => clearTimeout(holdTimer);
+        hotspot.addEventListener('mousedown', startHold);
+        hotspot.addEventListener('touchstart', startHold, { passive: true });
+        ['mouseup','mouseleave','touchend','touchcancel'].forEach(evt => hotspot.addEventListener(evt, cancelHold));
+
+        submitBtn.addEventListener('click', tryUnlock);
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
+      }
+
+      function disableForToday(){
+        input.disabled = true;
+        submitBtn.disabled = true;
+        msgEl.style.color = '#ea4335';
+        msgEl.textContent = 'Too many attempts. Try again tomorrow.';
+      }
+
+      async function tryUnlock(){
+        const val = input.value.trim();
+        if (!val) return;
+        const hash = await sha256(val);
+        input.value = '';
+        if (hash === CORRECT_HASH){
+          unlock();
+          return;
+        }
+        const count = bumpAttempts();
+        const left = MAX_ATTEMPTS - count;
+        if (left <= 0){
+          disableForToday();
+        } else {
+          msgEl.style.color = '#ea4335';
+          msgEl.textContent = `Incorrect. ${left} attempt${left === 1 ? '' : 's'} left today.`;
+          input.focus();
+        }
+      }
+
+      function lock(){
+        if (!overlay) buildOverlay();
+        clearSession();
+        document.documentElement.classList.add('pin-locked');
+        overlay.style.display = 'flex';
+        msgEl.style.color = '#ea4335';
+        msgEl.textContent = '';
+        input.value = '';
+
+        if (getAttempts() >= MAX_ATTEMPTS){
+          disableForToday();
+        } else {
+          input.disabled = false;
+          submitBtn.disabled = false;
+          setTimeout(() => input.focus(), 50);
+        }
+      }
+
+      function unlock(){
+        document.documentElement.classList.remove('pin-locked');
+        if (overlay) overlay.style.display = 'none';
+        startSession();
+      }
+
+      // Session expiry is only evaluated here, once, on load — not on a running
+      // timer — so it never yanks the page mid-session, only on next refresh.
+      if (hasValidSession()){
+        startSession(); // renew the 20-minute window for this fresh load
+      } else {
+        lock();
+      }
+    })();
+    </script>
     <!-- Hidden off-screen div for QR code generation -->
     <div id="qr-offscreen"></div>
 
@@ -2165,149 +2346,4 @@
         }
     </script>
 </body>
-
-<script>
-(function(){
-  'use strict';
-
-  const CORRECT_HASH = 'e9a82b29d0a309758a434777091f8c92673ba8853bc06a59f399b92f7ba361b7'; // sha256("6422")
-  const MAX_ATTEMPTS = 5;
-  const IDLE_LIMIT_MS = 60 * 1000; 
-  const STORE_KEY = 'dc_pin_lock';
-
-  async function sha256(str){
-    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-  }
-
-  const today = () => new Date().toISOString().slice(0,10);
-
-  function getAttempts(){
-    try{
-      const d = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
-      return d.date === today() ? (d.count || 0) : 0;
-    }catch(e){ return 0; }
-  }
-  function bumpAttempts(){
-    const count = getAttempts() + 1;
-    localStorage.setItem(STORE_KEY, JSON.stringify({ date: today(), count }));
-    return count;
-  }
-
-  let overlay, input, submitBtn, msgEl;
-
-  function buildOverlay(){
-    const style = document.createElement('style');
-    style.textContent = `
-      #pin-lock-overlay{position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;background:rgba(15,15,20,.55);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);font-family:'Roboto',system-ui,sans-serif;}
-      #pin-lock-box{background:#fff;border-radius:20px;padding:36px 30px;width:270px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.35);}
-      #pin-lock-logo{font-size:1.5rem;font-weight:700;margin-bottom:22px;color:#191c20;letter-spacing:-.5px;}
-      #pin-lock-logo span{color:#0b57d0;}
-      #pin-lock-row{display:flex;align-items:center;gap:8px;border:2px solid #e1e2e8;border-radius:28px;padding:6px 6px 6px 18px;transition:border-color .2s;}
-      #pin-lock-row:focus-within{border-color:#0b57d0;}
-      #pin-lock-input{border:none;outline:none;flex:1;min-width:0;font-size:1.1rem;letter-spacing:4px;background:transparent;}
-      #pin-lock-submit{background:#0b57d0;border:none;color:#fff;width:36px;height:36px;border-radius:50%;flex-shrink:0;cursor:pointer;font-size:1rem;line-height:1;}
-      #pin-lock-submit:disabled{background:#9aa0a6;cursor:not-allowed;}
-      #pin-lock-msg{margin-top:12px;font-size:.82rem;color:#ea4335;min-height:1.1em;}
-      html.pin-locked body > *:not(#pin-lock-overlay){filter:blur(14px);pointer-events:none;user-select:none;}
-    `;
-    document.head.appendChild(style);
-
-    overlay = document.createElement('div');
-    overlay.id = 'pin-lock-overlay';
-    overlay.innerHTML = `
-      <div id="pin-lock-box">
-        <div id="pin-lock-logo">Docu<span>Comp</span></div>
-        <div id="pin-lock-row">
-          <input id="pin-lock-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="Enter PIN" autocomplete="off">
-          <button id="pin-lock-submit" aria-label="Unlock">&#10148;</button>
-        </div>
-        <div id="pin-lock-msg"></div>
-      </div>`;
-    document.documentElement.appendChild(overlay);
-
-    input = overlay.querySelector('#pin-lock-input');
-    submitBtn = overlay.querySelector('#pin-lock-submit');
-    msgEl = overlay.querySelector('#pin-lock-msg');
-
-    submitBtn.addEventListener('click', tryUnlock);
-    input.addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
-  }
-
-  function disableForToday(){
-    input.disabled = true;
-    submitBtn.disabled = true;
-    msgEl.textContent = 'Too many attempts. Try again tomorrow.';
-  }
-
-  async function tryUnlock(){
-    const val = input.value.trim();
-    if (!val) return;
-    const hash = await sha256(val);
-    input.value = '';
-    if (hash === CORRECT_HASH){
-      unlock();
-      return;
-    }
-    const count = bumpAttempts();
-    const left = MAX_ATTEMPTS - count;
-    if (left <= 0){
-      disableForToday();
-    } else {
-      msgEl.textContent = `Incorrect. ${left} attempt${left === 1 ? '' : 's'} left today.`;
-      input.focus();
-    }
-  }
-
-  function lock(){
-    if (!overlay) buildOverlay();
-    document.documentElement.classList.add('pin-locked');
-    overlay.style.display = 'flex';
-    msgEl.textContent = '';
-    input.value = '';
-
-    if (getAttempts() >= MAX_ATTEMPTS){
-      disableForToday();
-    } else {
-      input.disabled = false;
-      submitBtn.disabled = false;
-      setTimeout(() => input.focus(), 50);
-    }
-    clearTimeout(idleTimer);
-  }
-
-  function unlock(){
-    document.documentElement.classList.remove('pin-locked');
-    overlay.style.display = 'none';
-    resetIdleTimer();
-  }
-
-  let idleTimer = null;
-  let hiddenAt = null;
-
-  function resetIdleTimer(){
-    clearTimeout(idleTimer);
-    idleTimer = setTimeout(lock, IDLE_LIMIT_MS);
-  }
-
-  ['mousemove','keydown','click','scroll','touchstart'].forEach(evt => {
-    document.addEventListener(evt, () => {
-      if (!document.documentElement.classList.contains('pin-locked')) resetIdleTimer();
-    }, { passive: true });
-  });
-
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden){
-      hiddenAt = Date.now();
-    } else if (hiddenAt && !document.documentElement.classList.contains('pin-locked')) {
-      if (Date.now() - hiddenAt >= IDLE_LIMIT_MS) lock();
-      hiddenAt = null;
-    }
-  });
-
-  
-  lock();
-})();
-</script>
-    
 </html>
