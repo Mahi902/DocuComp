@@ -576,6 +576,7 @@
             <div class="section-title-row">
                 <h2 class="section-title" style="border-bottom:none;padding-bottom:0;margin-bottom:0;">Recent Compositions</h2>
                 <div class="section-title-row-actions">
+                    <button class="btn-tonal" id="booklet-btn" onclick="downloadBooklet()" style="display:none;"><span class="material-symbols-outlined">menu_book</span> Download Booklet</button>
                     <div class="lang-toggle" id="lang-toggle">
                         <div class="lang-toggle-thumb" id="lang-toggle-thumb"></div>
                         <button class="lang-toggle-opt active" data-lang="en" onclick="switchLanguage('en')">English</button>
@@ -875,13 +876,7 @@
                 <label style="font-size:0.75rem;font-weight:700;color:var(--md-outline);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:6px;">Language</label>
                 <select id="dl-language" class="mini-select" style="width:100%;"></select>
             </div>
-            <div id="dl-options-wrap" style="text-align:left;background:var(--md-surface-container-low);border-radius:16px;padding:4px 20px;margin-bottom:24px;">
-                <div class="dl-row"><label for="dl-images">Include Images</label><label class="switch"><input type="checkbox" id="dl-images" checked><span class="slider"></span></label></div>
-                <div class="dl-row"><label for="dl-bgcolor">Include Background Color</label><label class="switch"><input type="checkbox" id="dl-bgcolor"><span class="slider"></span></label></div>
-                <div class="dl-row"><label for="dl-pagenums">Page Numbering</label><label class="switch"><input type="checkbox" id="dl-pagenums" checked><span class="slider"></span></label></div>
-                <div class="dl-row"><label for="dl-justify">Justified Text</label><label class="switch"><input type="checkbox" id="dl-justify" checked><span class="slider"></span></label></div>
-            </div>
-            <button class="btn-primary" onclick="downloadPDF()" style="width:100%;justify-content:center;margin-bottom:10px;">
+            <button class="btn-primary" onclick="downloadPDF()" style="width:100%;justify-content:center;margin-bottom:10px;margin-top:8px;">
                 <span class="material-symbols-outlined">download</span> <span id="dl-main-label">Download PDF</span>
             </button>
             <button class="btn-tonal" id="dl-generate-btn" onclick="downloadPDF(true)" style="display:none;width:100%;justify-content:center;margin-bottom:10px;">
@@ -1134,6 +1129,7 @@
             document.querySelectorAll('.lang-toggle-opt').forEach(b=>b.classList.toggle('active', b.dataset.lang===currentLang));
             const thumb=document.getElementById('lang-toggle-thumb');
             if(thumb) thumb.classList.toggle('bn', currentLang==='bn');
+            const bkb=document.getElementById('booklet-btn'); if(bkb) bkb.style.display = currentLang==='bn' ? '' : 'none';
         }
 
         function refreshCompositions() {
@@ -1241,7 +1237,7 @@
             return { id:encodeURIComponent(lang+'::'+title), title, coverImg, dateStr:file.date,
                 dateFormatted:new Date(file.date).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}),
                 content:rawContent, tags:[...new Set(tags)].filter(t=>t.toUpperCase()!=='TMP'), wordCount,
-                lang: lang||'en', pdfUrl, summary };
+                lang: lang||'en', pdfUrl, summary, raw:file.content };
         }
 
         function getGradientForTitle(title) {
@@ -1553,8 +1549,10 @@
         function renderPostIntoReader(title, content, animate) {
             const dcpRe=/(?:<|&lt;)DCP(?:>|&gt;)\s*(.*?)\s*(?:<|&lt;)\/DCP(?:>|&gt;)/gi;
             let dcpUrl=null, processed=content.replace(dcpRe,(m,url)=>{ dcpUrl=url.trim(); return ''; });
+            if(!dcpUrl && typeof currentPost!=='undefined' && currentPost && currentPost.content){ const m=currentPost.content.match(/(?:<|&lt;)DCP(?:>|&gt;)\s*(.*?)\s*(?:<|&lt;)\/DCP(?:>|&gt;)/i); if(m&&m[1].trim()) dcpUrl=m[1].trim(); }
             const ob=document.getElementById('open-docuwrite-btn');
-            ob.onclick=()=>window.open(dcpUrl||'https://mahi902.github.io/DocuWritePro/','_blank');
+            ob.style.display=dcpUrl?'':'none';
+            ob.onclick=()=>{ if(dcpUrl) window.open(dcpUrl,'_blank'); };
             const titleEl=document.getElementById('reader-title'), bodyEl=document.getElementById('reader-body');
             const apply=()=>{ titleEl.textContent=title; bodyEl.innerHTML=marked.parse(processed); updateReadingGuide(); };
             if(!animate) { apply(); return; }
@@ -2051,7 +2049,6 @@
             document.getElementById('download-modal').classList.add('open');
             const isArchived = !!currentPost.pdfUrl;
             document.getElementById('dl-archive-hint').style.display = isArchived ? 'block' : 'none';
-            document.getElementById('dl-options-wrap').style.display = '';
             document.getElementById('dl-generate-btn').style.display = isArchived ? 'flex' : 'none';
             document.getElementById('dl-main-label').textContent = isArchived ? 'Download Archived PDF' : 'Download PDF';
             await populateDownloadLanguageOptions();
@@ -2093,191 +2090,445 @@
             }
         }
 
-        // ── Bangla PDF builder (Tiro Bangla, rendered via HTML → canvas → jsPDF) ──
-        async function buildBanglaPDF(post, title, content, summary) {
-            const BLUE='#0045C7', PWd=595, PHt=842, L=28, FS=15, MARG=2*L;
-            const BOT=MARG+8, LPP=Math.floor((PHt-MARG-BOT)/L), CW=PWd-MARG*2, CH=LPP*L, CHG=PHt-MARG-BOT;
+        // ── Bangla PDF builder (modern layout; HTML → canvas → jsPDF) ──────────
+        async function buildBanglaPDF(post, title, content, summary, opts) {
+            opts=opts||{};
+            const BK=!!opts.booklet;
+            const BLUE=BK?'#1F2A44':'#0B4FD6', DEEP=BK?'#111111':'#0A2A6B', INK=BK?'#1B1B1B':'#22252E', MUTE=BK?'#6B665C':'#6B7285', LINE=BK?'#CFC9BC':'#E4E8F2', TINT=BK?'#F3EFE6':'#EEF3FF';
+            const PWd=595, PHt=842, MX=54, CW=PWd-MX*2, TOPY=78, BOTY=68, CHH=PHt-TOPY-BOTY;
+            const FS=14.5, L=26;
+            const SERIF="'Tiro Bangla',serif", SANS="'Noto Sans Bengali','Tiro Bangla',sans-serif";
             const bn=n=>String(n).replace(/\d/g,d=>'০১২৩৪৫৬৭৮৯'[d]);
             const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-            await document.fonts.load('16px "Tiro Bangla"'); await document.fonts.load('italic 16px "Tiro Bangla"');
+            const B0='\uE000', B1='\uE001';                       // inline-bold markers (one pair per word)
+            const plain=s=>s.replace(/[\uE000\uE001]/g,'');
+            const rich=s=>esc(s).replace(/\uE000/g,`<b style="font-weight:700;color:${DEEP};">`).replace(/\uE001/g,'</b>');
+            await Promise.all([`${FS}px "Tiro Bangla"`,`italic ${FS}px "Tiro Bangla"`,'400 14px "Noto Sans Bengali"','500 14px "Noto Sans Bengali"','700 14px "Noto Sans Bengali"']
+                .map(f=>document.fonts.load(f,'অআকখগ০১২৩').catch(()=>{})));
             await document.fonts.ready;
+            const shareUrl=`${location.origin}${location.pathname}#share=${encodeURIComponent(post.title)}`;
+            const qrData=opts.booklet?null:await generateQRDataURL(shareUrl,160);
 
-            // Parse text into blocks
-            function parse(text) {
-                text = text.replace(/(?:<|&lt;)DCP(?:>|&gt;)[\s\S]*?(?:<|&lt;)\/DCP(?:>|&gt;)/gi,'')
-                    .replace(/!\[.*?\]\(.*?\)/g,'').replace(/\[([^\]]+)\]\([^)]+\)/g,'$1')
-                    .replace(/^\s*>\s?/gm,'').replace(/^\s*[-+]\s+/gm,'• ');
-                const clean=t=>t.replace(/(\*\*|__|\*|`)/g,'').trim();
-                const out=[]; let para=[], poem=null;
-                const flushP=()=>{ if(para.length){ out.push({t:'p',text:para.join(' ')}); para=[]; } };
-                const flushPoem=()=>{ if(poem){ out.push({t:'poem',lines:poem}); poem=null; } };
-                for(const raw of text.split(/\r?\n/)) {
-                    let line=raw.trim();
-                    if(!line){ flushP(); flushPoem(); continue; }
-                    const h=line.match(/^#{1,6}\s+(.*)$/);
-                    if(h){ flushP(); flushPoem(); out.push({t:'h',text:clean(h[1])}); continue; }
-                    // Bold text at the start of a paragraph = paragraph title
-                    line=line.replace(/^[\u200b-\u200d\ufeff\s•]+/,'');
-                    const bt=line.match(/^(?:\*\*\*|\*\*|__|<b>|<strong>)\s*(.+?)\s*(?:\*\*\*|\*\*|__|<\/b>|<\/strong>)\s*(.*)$/i);
-                    if(bt && clean(bt[1]).replace(/<[^>]+>/g,'').length<=120) {
-                        flushP(); flushPoem();
-                        let rest=bt[2].trim(), ttl=clean(bt[1]).replace(/<[^>]+>/g,'');
-                        const m2=rest.match(/^([:：।\-–—]+)\s*(.*)$/);
-                        if(m2){ if(/[:：]/.test(m2[1]) && !/[:：]$/.test(ttl)) ttl+=':'; rest=m2[2]; }
-                        out.push({t:'h',text:ttl});
-                        line=rest;
-                        if(!line) continue;
+            // ── Parsing ───────────────────────────────────────────────────────
+            // Inline markdown → [{t, b}] segments (b = bold)
+            const inline=s=>{
+                s=s.replace(/<br\s*\/?>/gi,' ').replace(/<\/?(?:strong|b)>/gi,'**').replace(/<\/?(?:i|em|u|mark|span)(?:\s[^>]*)?>/gi,'')
+                   .replace(/\*\*\*/g,'**').replace(/(^|[^\w])__(.+?)__(?=[^\w]|$)/g,'$1**$2**');
+                const parts=s.split('**'), unclosed=parts.length%2===0, segs=[];
+                parts.forEach((p,i)=>{ p=p.replace(/[`*]/g,''); if(!p) return; segs.push({t:p,b:i%2===1&&!(unclosed&&i===parts.length-1)}); });
+                return segs;
+            };
+            const mk=segs=>segs.map(s=>s.b?s.t.replace(/\S+/g,w=>B0+w+B1):s.t).join('').replace(/\s+/g,' ').trim();
+            // Point title: the bold text, with ':' (and any leading "১.") removed
+            const cleanTitle=t=>t.replace(/^[\s:：]+|[\s:：]+$/g,'').replace(/^[\d০-৯]+\s*[.)।]\s*/,'').replace(/[\s।:：]+$/,'').replace(/\s+/g,' ').trim();
+            // Split one line into points (bold labels) and plain text runs
+            function splitLine(segs, allowLead) {
+                const out=[]; let buf=[];
+                const flush=()=>{ if(buf.some(s=>/\S/.test(s.t))) out.push({kind:'text',segs:buf}); buf=[]; };
+                const allBold=segs.every(s=>s.b||!/\S/.test(s.t));
+                segs.forEach((s,i)=>{
+                    if(s.b) {
+                        const lead=!segs.slice(0,i).some(x=>/\S/.test(x.t));
+                        const nxt=segs[i+1];
+                        const labelled=/[:：]\s*$/.test(s.t)||(nxt&&!nxt.b&&/^\s*[:：]/.test(nxt.t));
+                        const tx=cleanTitle(s.t);
+                        if(tx && tx.length<=160 && ((lead&&(allowLead||labelled||allBold))||(!lead&&labelled))) {
+                            flush(); out.push({kind:'point',text:tx});
+                            if(nxt&&!nxt.b) nxt.t=nxt.t.replace(/^\s*[:：]\s*/,'').replace(/^\s*[-–—]\s+/,'');
+                            return;
+                        }
                     }
-                    line=line.replace(/<\/?(?:b|strong|i|em)>/gi,'');
-                    line=clean(line);
-                    if(!line) continue;
-                    if(/^["“”][^"“”]+["“”][\s.,।!?]*$/.test(line)) { flushP(); (poem=poem||[]).push(line); continue; }
-                    flushPoem(); para.push(line);
+                    buf.push(s);
+                });
+                flush(); return out;
+            }
+            function parse(text) {
+                const tagBlock=n=>new RegExp(`(?:<|&lt;)${n}(?:>|&gt;)[\\s\\S]*?(?:<|&lt;)\\/${n}(?:>|&gt;)`,'gi');
+                text=text.replace(tagBlock('DCP'),'').replace(tagBlock('SUMM'),'').replace(tagBlock('PDF'),'').replace(tagBlock('TAGS?'),'')
+                    .replace(/(?:<|&lt;)\/?(?:TAGS?|DCP|SUMM|PDF)(?:>|&gt;)/gi,'')
+                    .replace(/<br\s*\/?>/gi,'\n')
+                    .replace(/!\[.*?\]\(.*?\)/g,'').replace(/\[([^\]]+)\]\([^)]+\)/g,'$1').replace(/^\s*>\s?/gm,'')
+                    .replace(/^[ \t]*(?:#[^\s#]+[ \t,]*)+$/gm,'');
+                const lines=text.split(/\r?\n/).map(l=>l.replace(/[\u200b-\u200d\ufeff]/g,''));
+                const out=[]; let para=[], lastLi=null, no=0, poemEnd=-2;
+                const flushP=()=>{ const tx=mk(para); if(plain(tx).trim()) out.push({t:'p',text:tx}); para=[]; };
+                const flushAll=()=>{ flushP(); lastLi=null; };
+                const OPENQ=/^["“„«‘]/, CLOSEQ=/["”“»’][\s.,।!?;:…–—-]*$/, ANYQ=/["“”„«»]/;
+                const nW=t=>t.split(/\s+/).filter(Boolean).length;
+                const pc=l=>inline(l.trim()).map(s=>s.t).join('').trim();
+                // A quoted block ("…" over one or many lines, stanza gaps allowed) → returns index of its last line, or -1
+                const quoteEnd=i=>{
+                    const first=pc(lines[i]);
+                    if(!OPENQ.test(first)) return -1;
+                    const rest=first.slice(1);
+                    if(CLOSEQ.test(rest)) return i;
+                    if(ANYQ.test(rest)) return -1;
+                    for(let j=i+1;j<Math.min(lines.length,i+80);j++){
+                        const t=pc(lines[j]); if(!t) continue;
+                        if(CLOSEQ.test(t)) return ANYQ.test(t.replace(CLOSEQ,''))?-1:j;
+                        if(ANYQ.test(t)) return -1;
+                    }
+                    return -1;
+                };
+                for(let i=0;i<lines.length;i++) {
+                    let line=lines[i].trim();
+                    if(!line){ flushAll(); continue; }
+                    if(/^([-*_=]\s*){3,}$/.test(line)){ flushAll(); continue; }
+                    const qe=quoteEnd(i);
+                    if(qe>=0) {
+                        const chunk=lines.slice(i,qe+1).map(pc);
+                        if(nW(chunk.join(' '))>2) {
+                            flushAll();
+                            while(chunk.length&&!chunk[0]) chunk.shift();
+                            while(chunk.length&&!chunk[chunk.length-1]) chunk.pop();
+                            const prev=out[out.length-1];
+                            if(prev&&prev.t==='poem'&&poemEnd===i-1) prev.lines.push(...chunk); else out.push({t:'poem',lines:chunk});
+                            poemEnd=qe; i=qe; continue;
+                        }
+                    }
+                    const hm=line.match(/^#{1,6}\s+(.*)$/);
+                    if(hm){ flushAll(); const t=cleanTitle(inline(hm[1]).map(s=>s.t).join('')); if(t) out.push({t:'h',text:t}); continue; }
+                    const lm=line.match(/^(?:([-+*•●▪◦])|(\d+|[০-৯]+)[.)।])\s+(.*)$/);
+                    let isLi=false, marker='dot';
+                    if(lm){ isLi=true; if(lm[2]) marker=bn(lm[2])+'.'; line=lm[3]; }
+                    const segs=inline(line);
+                    if(!segs.length) continue;
+                    const parts=splitLine(segs, isLi||para.length===0);
+                    const hasPoint=parts.some(p=>p.kind==='point');
+                    if(!hasPoint) {
+                        if(isLi){ flushP(); lastLi={t:'li',text:mk(segs),marker}; if(plain(lastLi.text).trim()) out.push(lastLi); continue; }
+                        if(lastLi){ lastLi.text=(lastLi.text+' '+mk(segs)).trim(); continue; }
+                    }
+                    parts.forEach(p=>{
+                        if(p.kind==='point'){ flushAll(); out.push({t:'pt',text:p.text,no:++no}); return; }
+                        const tx=mk(p.segs);
+                        if(!plain(tx).trim()) return;
+                        lastLi=null;
+                        if(para.length) para.push({t:' ',b:false});
+                        para.push(...p.segs);
+                    });
                 }
-                flushP(); flushPoem(); return out;
+                flushAll(); return out;
             }
             const blocks=parse(content);
-            const sumBlocks=summary ? parse(summary).map(b=>b.t==='h'?b:b) : [];
+            let sumBlocks=summary?parse(summary):[];
+            if(sumBlocks.length && sumBlocks[0].t!=='h') sumBlocks=[{t:'h',text:'সারসংক্ষেপ'},...sumBlocks];
 
-            // Measuring sandbox
+            // ── Measuring sandbox ─────────────────────────────────────────────
             const sandbox=document.createElement('div');
             sandbox.style.cssText=`position:fixed;left:-10000px;top:0;width:${PWd}px;`;
             document.body.appendChild(sandbox);
-            const baseCss=`font-family:'Tiro Bangla',serif;font-size:${FS}px;line-height:${L}px;color:#1b1b1f;text-align:justify;text-align-last:left;`;
-            function wordLines(text, fs) {
+            const baseCss=`font-family:${SERIF};font-size:${FS}px;line-height:${L}px;color:${INK};text-align:justify;text-align-last:left;`;
+            function wordLines(text, w, css) {
                 const m=document.createElement('div');
-                m.style.cssText=`${baseCss}width:${CW}px;font-size:${fs||FS}px;position:absolute;`;
+                m.style.cssText=`${css||baseCss}width:${w}px;position:absolute;`;
                 const words=text.split(/\s+/).filter(Boolean);
-                m.innerHTML=words.map(w=>`<span style="white-space:nowrap">${esc(w)}</span>`).join(' ');
+                m.innerHTML=words.map(wd=>`<span style="white-space:nowrap">${rich(wd)}</span>`).join(' ');
                 sandbox.appendChild(m);
-                const spans=[...m.children]; const lines=[]; let lastTop=null;
-                spans.forEach((s,i)=>{ const t=s.offsetTop; if(lastTop===null||Math.abs(t-lastTop)>4){ lines.push([]); lastTop=t; } lines[lines.length-1].push(words[i]); });
+                const lines=[]; let lastTop=null;
+                [...m.children].forEach((s,i)=>{ const t=s.offsetTop; if(lastTop===null||Math.abs(t-lastTop)>4){ lines.push([]); lastTop=t; } lines[lines.length-1].push(words[i]); });
                 sandbox.removeChild(m); return lines.map(l=>l.join(' '));
             }
-            function poemHeight(lines) {
+            function measure(html, w) {
                 const m=document.createElement('div');
-                m.style.cssText=`${baseCss}width:${CW}px;text-align:center;text-align-last:center;position:absolute;`;
-                m.innerHTML=lines.map(l=>`<div>${esc(l)}</div>`).join(''); sandbox.appendChild(m);
-                const n=Math.round(m.offsetHeight/L); sandbox.removeChild(m); return n;
+                m.style.cssText=`position:absolute;width:${w}px;`; m.innerHTML=html;
+                sandbox.appendChild(m); const h=m.offsetHeight; sandbox.removeChild(m); return h;
+            }
+            function fit(text, css, maxW) {
+                const s=document.createElement('span');
+                s.style.cssText=`${css}white-space:nowrap;position:absolute;`; sandbox.appendChild(s);
+                const wd=t=>{ s.textContent=t; return s.offsetWidth; };
+                let out=text;
+                if(wd(text)>maxW) {
+                    const words=text.split(' ');
+                    while(words.length>1 && wd(words.join(' ')+'…')>maxW) words.pop();
+                    let t=words.join(' ');
+                    if(wd(t+'…')>maxW) {
+                        const g=(typeof Intl!=='undefined'&&Intl.Segmenter)?[...new Intl.Segmenter('bn',{granularity:'grapheme'}).segment(t)].map(x=>x.segment):Array.from(t);
+                        while(g.length>1 && wd(g.join('')+'…')>maxW) g.pop();
+                        t=g.join('');
+                    }
+                    out=t+'…';
+                }
+                sandbox.removeChild(s); return out;
             }
 
-            // Paginate
+            // ── Item markup ───────────────────────────────────────────────────
+            const ptInnerStd=it=>`<div style="display:flex;align-items:center;gap:12px;background:linear-gradient(90deg,#E9F0FF,#F8FAFF);border-radius:12px;padding:8px 16px 8px 8px;"><div style="flex:0 0 32px;width:32px;height:32px;border-radius:10px;background:${BLUE};color:#fff;font-family:${SANS};font-weight:700;font-size:13px;line-height:32px;text-align:center;">${bn(String(it.no).padStart(2,'0'))}</div><div style="flex:1;min-width:0;font-family:${SANS};font-weight:700;font-size:16px;line-height:25px;color:${DEEP};">${esc(it.text)}</div></div>`;
+            const hInnerStd=it=>`<div><div style="font-family:${SANS};font-weight:700;font-size:21px;line-height:31px;color:${DEEP};">${esc(it.text)}</div><div style="width:40px;height:4px;border-radius:2px;background:${BLUE};margin-top:6px;"></div></div>`;
+            const poemInnerStd=it=>`<div style="box-sizing:border-box;padding:14px 22px;background:${TINT};border-radius:14px;border-left:4px solid ${BLUE};font-family:${SERIF};font-style:italic;font-size:${FS+0.5}px;line-height:${L}px;text-align:center;color:${DEEP};">${it.lines.map(l=>l?`<div style="min-height:${L}px;">${esc(l)}</div>`:`<div style="height:${Math.round(L/2)}px;"></div>`).join('')}</div>`;
+            const pInner=it=>{
+                const ind=it.indent||0; let mkr='';
+                if(it.mark==='dot') mkr=`<div style="position:absolute;left:6px;top:${(L-7)/2}px;width:7px;height:7px;border-radius:4px;background:${BLUE};"></div>`;
+                else if(it.mark) mkr=`<div style="position:absolute;left:0;top:0;line-height:${L}px;font-family:${SANS};font-weight:700;font-size:13px;color:${BLUE};">${esc(it.mark)}</div>`;
+                const lines=it.lines.map((t,i)=>`<div style="height:${L}px;overflow:hidden;${(i<it.lines.length-1||it.justLast)?'text-align-last:justify;':''}">${rich(t)}</div>`).join('');
+                return `<div style="position:relative;padding-left:${ind}px;${baseCss}">${mkr}${lines}</div>`;
+            };
+            const etInnerStd=it=>`<div style="padding:26px 0 4px;"><div style="display:inline-block;font-family:${SANS};font-weight:700;font-size:11px;color:${BLUE};background:${TINT};border-radius:12px;padding:4px 14px;line-height:16px;">রচনা ${bn(String(it.no).padStart(2,'0'))}</div><div style="margin-top:14px;font-family:${SERIF};font-size:30px;line-height:42px;color:${DEEP};">${esc(it.text)}</div><div style="margin-top:10px;font-family:${SANS};font-size:12px;line-height:18px;color:${MUTE};">Mohtadi Azad Mahi &nbsp;·&nbsp; ${it.date||''}</div><div style="width:56px;height:4px;border-radius:2px;background:${BLUE};margin-top:14px;"></div></div>`;
+            const ptInner=it=>BK?`<div style="font-family:${SERIF};font-size:17px;line-height:26px;font-weight:700;color:${DEEP};"><span style="font-weight:400;color:${MUTE};margin-right:10px;">${bn(it.no)}.</span>${esc(it.text)}</div>`:ptInnerStd(it);
+            const hInner=it=>BK?`<div><div style="font-family:${SERIF};font-size:21px;line-height:32px;font-weight:700;color:${DEEP};">${esc(it.text)}</div><div style="width:36px;height:1px;background:${INK};margin-top:6px;"></div></div>`:hInnerStd(it);
+            const poemInner=it=>BK?`<div style="padding:4px 24px;font-family:${SERIF};font-style:italic;font-size:${FS}px;line-height:${L}px;text-align:center;color:${INK};">${it.lines.map(l=>l?`<div style="min-height:${L}px;">${esc(l)}</div>`:`<div style="height:${Math.round(L/2)}px;"></div>`).join('')}</div>`:poemInnerStd(it);
+            const etInner=it=>BK?`<div style="padding:46px 0 6px;text-align:center;"><div style="font-family:${SERIF};font-size:12.5px;line-height:18px;color:${MUTE};">রচনা ${bn(it.no)}</div><div style="margin:18px 0 0;font-family:${SERIF};font-size:30px;line-height:42px;color:${DEEP};">${esc(it.text)}</div><div style="width:44px;height:1px;background:${INK};margin:18px auto 12px;"></div><div style="font-family:${SERIF};font-style:italic;font-size:12.5px;line-height:20px;color:${MUTE};">Mohtadi Azad Mahi &nbsp;·&nbsp; ${it.date||''}</div></div>`:etInnerStd(it);
+            const inner=it=>it.k==='etitle'?etInner(it):it.k==='pt'?ptInner(it):it.k==='h'?hInner(it):it.k==='poem'?poemInner(it):pInner(it);
+            const itemHtml=it=>`<div style="padding-top:${it.mt}px;padding-bottom:${it.mb}px;">${inner(it)}</div>`;
+
+            // ── Pagination (pixel based) ──────────────────────────────────────
             function paginate(bl) {
                 const pages=[]; let cur={items:[],used:0};
                 const np=()=>{ pages.push(cur); cur={items:[],used:0}; };
-                const room=()=>LPP-cur.used;
-                const pushItem=(it)=>{ cur.items.push(it); cur.used+=it.n; if(it.gap) cur.used+=0.5; };
-                for(const b of bl) {
-                    if(b.t==='h') {
-                        const ls=wordLines(b.text,19), n=ls.length;
-                        const need=n+(cur.used?0.5:0)+2;
+                const room=()=>CHH-cur.used;
+                const add=it=>{ if(cur.used===0) it.mt=0; cur.items.push(it); cur.used+=it.mt+it.h+it.mb; };
+                const place=(it,keep)=>{ const need=(cur.used?it.mt:0)+it.h+it.mb+(keep?2*L:0); if(cur.used && room()<need) np(); add(it); };
+                bl.forEach((b,bi)=>{
+                    const nx=bl[bi+1];
+                    if(b.t==='etitle') {
+                        const it={k:'etitle',text:b.text,no:b.no,date:b.date,mt:0,mb:22,h:0};
+                        it.h=measure(inner(it),CW); add(it);
+                    } else if(b.t==='h'||b.t==='pt') {
+                        const it={k:b.t,text:b.text,no:b.no,mt:b.t==='h'?22:18,mb:b.t==='h'?12:8,h:0};
+                        it.h=measure(inner(it),CW);
+                        const need=(cur.used?it.mt:0)+it.h+it.mb+2*L;
                         if(cur.used && room()<need) np();
-                        if(cur.used) cur.used+=0.5;
-                        b.page=pages.length; pushItem({k:'h',lines:ls,n,gap:true});
-                    } else if(b.t==='p') {
-                        let ls=wordLines(b.text), i=0;
+                        b.page=pages.length; add(it);
+                    } else if(b.t==='poem') {
+                        const mkP=ls=>({k:'poem',lines:ls,mt:8,mb:16,h:0});
+                        const it=mkP(b.lines); it.h=measure(inner(it),CW);
+                        if(it.h<=CHH-60) place(it,false);
+                        else {
+                            let rest=b.lines.slice();
+                            while(rest.length) {
+                                let r=room(); if(cur.used && r<160){ np(); r=room(); }
+                                let k=1;
+                                for(let j=1;j<=rest.length;j++){ const t=mkP(rest.slice(0,j)); t.h=measure(inner(t),CW); if((cur.used?t.mt:0)+t.h+t.mb>r) break; k=j; }
+                                const chunk=rest.slice(0,k); rest=rest.slice(k);
+                                while(chunk.length&&!chunk[chunk.length-1]) chunk.pop();
+                                while(rest.length&&!rest[0]) rest.shift();
+                                const t=mkP(chunk); t.h=measure(inner(t),CW); add(t);
+                                if(rest.length) np();
+                            }
+                        }
+                    } else {
+                        const li=b.t==='li', ind=li?24:0;
+                        const gap=li?((nx&&nx.t==='li')?5:12):((nx&&nx.t==='h')?2:(nx&&nx.t==='pt')?4:10);
+                        const ls=wordLines(b.text,CW-ind); let i=0;
                         while(i<ls.length) {
                             const rem=ls.length-i;
-                            let avail=Math.floor(room());
-                            if(avail<(rem>=2?2:1)) { np(); avail=Math.floor(room()); }
+                            let avail=Math.floor(room()/L);
+                            if(avail<Math.min(rem,2)){ np(); avail=Math.floor(room()/L); }
                             let k=Math.min(rem,avail);
                             if(rem-k===1 && k>2) k--;
                             const last=(i+k>=ls.length);
-                            pushItem({k:'p',lines:ls.slice(i,i+k),n:k,justLast:!last,gap:last});
+                            add({k:'p',lines:ls.slice(i,i+k),indent:ind,mark:(li&&i===0)?b.marker:null,justLast:!last,mt:0,mb:last?gap:0,h:k*L});
                             i+=k; if(!last) np();
                         }
-                    } else if(b.t==='poem') {
-                        const n=poemHeight(b.lines);
-                        if(room()<n+0.5 && cur.used) np();
-                        pushItem({k:'poem',lines:b.lines,n,gap:true});
                     }
-                }
+                });
                 if(cur.items.length) pages.push(cur);
                 return pages;
             }
             const bodyPages=paginate(blocks);
-            const sumPages=sumBlocks.length ? paginate(sumBlocks.length && sumBlocks[0].t!=='h' ? [{t:'h',text:'সারসংক্ষেপ'},...sumBlocks] : sumBlocks) : [];
-            const total=bodyPages.length||1;
+            const sumPages=sumBlocks.length?paginate(sumBlocks):[];
+            if(!bodyPages.length && !sumPages.length) bodyPages.push({items:[],used:0});
+            const N=bodyPages.length;
 
-            // Stats
-            const plain=blocks.map(b=>b.t==='poem'?b.lines.join(' '):b.text).join(' ');
-            const words=plain.split(/\s+/).filter(Boolean).length;
-            const paras=blocks.filter(b=>b.t==='p').length;
-            const poems=blocks.filter(b=>b.t==='poem').length;
-            const sentences=(blocks.filter(b=>b.t==='p').map(b=>b.text).join(' ').match(/[^।.!?]+[।.!?]+/g)||[]).length;
-            const heads=blocks.filter(b=>b.t==='h');
+            // ── Stats ─────────────────────────────────────────────────────────
+            const textOf=b=>b.t==='poem'?b.lines.join(' '):plain(b.text);
+            const words=blocks.map(textOf).join(' ').split(/\s+/).filter(Boolean).length;
+            const poems=blocks.filter(b=>b.t==='poem').length, pts=blocks.filter(b=>b.t==='pt').length;
             const fmt=d=>new Date(d).toLocaleDateString('bn-BD',{year:'numeric',month:'long',day:'numeric'});
-            const pubDate=fmt(post.dateStr||Date.now()), createdDate=(()=>{const n=new Date(),h=n.getHours(),per=h<5?'রাত':h<12?'সকাল':h<15?'দুপুর':h<18?'বিকাল':h<20?'সন্ধ্যা':'রাত';return `${fmt(n)}, ${per} ${bn(h%12||12)}:${bn(String(n.getMinutes()).padStart(2,'0'))}`;})();
+            const pubDate=fmt(post.dateStr||Date.now());
+            const createdDate=(()=>{const n=new Date(),h=n.getHours(),per=h<5?'রাত':h<12?'সকাল':h<15?'দুপুর':h<18?'বিকাল':h<20?'সন্ধ্যা':'রাত';return `${fmt(n)}, ${per} ${bn(h%12||12)}:${bn(String(n.getMinutes()).padStart(2,'0'))}`;})();
+            const stats=[['শব্দ',bn(words)]];
+            if(pts) stats.push(['পয়েন্ট',bn(pts)]);
+            if(poems) stats.push(['কবিতা',bn(poems)]);
+            stats.push(['পৃষ্ঠা',bn(N)]);
 
-            // Page builders
-            const NAME_URL='https://mahi902.github.io', COMP_URL='https://mahi902.github.io/DocuCom', PRO_URL='https://mahi902.github.io/DocuWritePro/';
-            const chrome=(num)=>`
-                <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-35deg);font-family:'Inter','Helvetica',sans-serif;font-weight:800;font-size:110px;color:rgba(0,69,199,0.065);white-space:nowrap;z-index:0;">DocuComp</div>
-                <div style="position:absolute;left:${MARG}px;right:${MARG}px;top:${MARG-34}px;display:flex;justify-content:space-between;font-size:12px;color:#555;z-index:1;line-height:18px;">
-                    <span style="max-width:380px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${esc(title)}</span><span>${num?`পৃষ্ঠা ${bn(num)} / ${bn(total)}`:''}</span></div>
-                <div style="position:absolute;left:${MARG}px;right:${MARG}px;bottom:12px;display:flex;justify-content:space-between;align-items:flex-end;font-size:10.5px;white-space:nowrap;color:#555;z-index:1;line-height:16px;">
-                    <span>লিখেছেন: <a data-url="${NAME_URL}" style="color:${BLUE};text-decoration:underline;">Mohtadi Azad Mahi</a></span>
-                    <span style="text-align:right;">এই রচনা ও আরও রচনা পাবেন:<br><a data-url="${COMP_URL}" style="color:${BLUE};text-decoration:underline;">${COMP_URL}</a></span></div>`;
-            const itemHtml=(it)=>{
-                const gap=it.gap?`margin-bottom:${L/2}px;`:'';
-                const ld=(t,x)=>`<div style="height:${L}px;overflow:hidden;${x||''}">${esc(t)}</div>`;
-                if(it.k==='h') return `<div style="${baseCss}font-size:19px;color:${BLUE};${gap}">${it.lines.map(t=>ld(t)).join('')}</div>`;
-                if(it.k==='poem') return `<div style="${baseCss}text-align:center;text-align-last:center;color:${BLUE};${gap}">${it.lines.map(l=>`<div>${esc(l)}</div>`).join('')}</div>`;
-                return `<div style="${baseCss}${gap}">${it.lines.map((t,i)=>ld(t,(i<it.lines.length-1||it.justLast)?'text-align-last:justify;':'')).join('')}</div>`;
+            // ── Chrome ────────────────────────────────────────────────────────
+            const NAME_URL='https://mahi902.github.io', COMP_URL='https://mahi902.github.io/DocuComp', PRO_URL='https://mahi902.github.io/DocuWritePro/';
+            const headTitle=fit(title,`font-family:${SANS};font-size:11px;`,CW-130);
+            const headerStd=(label,ht)=>`<div style="position:absolute;left:${MX}px;right:${MX}px;top:30px;height:28px;display:flex;align-items:center;justify-content:space-between;font-family:${SANS};"><div style="display:flex;align-items:center;gap:8px;font-size:11px;color:${MUTE};white-space:nowrap;"><div style="width:8px;height:8px;border-radius:4px;background:${BLUE};"></div><span>${esc(ht||headTitle)}</span></div>${label?`<div style="font-size:10.5px;font-weight:500;color:${BLUE};background:${TINT};border-radius:11px;padding:3px 12px;line-height:16px;white-space:nowrap;">${label}</div>`:''}</div><div style="position:absolute;left:${MX}px;right:${MX}px;top:64px;height:1px;background:${LINE};"></div>`;
+            const footerStd=()=>`<div style="position:absolute;left:${MX}px;right:${MX}px;bottom:48px;height:1px;background:${LINE};"></div><div style="position:absolute;left:${MX}px;right:${MX}px;bottom:24px;height:18px;display:flex;justify-content:space-between;align-items:center;font-family:${SANS};font-size:10.5px;line-height:18px;color:${MUTE};white-space:nowrap;"><span>লিখেছেন <span data-url="${NAME_URL}" style="color:${BLUE};font-weight:500;">Mohtadi Azad Mahi</span></span><span>আরও রচনা <span data-url="${COMP_URL}" style="color:${BLUE};font-weight:500;">mahi902.github.io/DocuComp</span></span></div>`;
+            const dots=(x,y,w,h)=>`<div style="position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;background-image:radial-gradient(circle,rgba(11,79,214,0.22) 1.3px,transparent 1.6px);background-size:14px 14px;"></div>`;
+            const bgArt=(cover)=>`<div style="position:absolute;left:0;top:0;width:${PWd}px;height:${PHt}px;background:linear-gradient(180deg,#F7FAFF 0%,#FFFFFF 38%,#FFFFFF 70%,#F3F7FF 100%);"></div>
+                <div style="position:absolute;right:-110px;bottom:-110px;width:320px;height:320px;border-radius:160px;background:rgba(11,79,214,0.045);"></div>
+                <div style="position:absolute;right:-30px;bottom:-30px;width:170px;height:170px;border-radius:85px;background:rgba(11,79,214,0.05);"></div>
+                <div style="position:absolute;left:-90px;bottom:120px;width:200px;height:200px;border-radius:100px;background:rgba(11,79,214,0.03);"></div>
+                ${dots(PWd-MX-84,PHt-190,84,70)}
+                ${cover?'':`<div style="position:absolute;left:0;top:0;width:${PWd}px;height:5px;background:linear-gradient(90deg,#0A2A6B,#0B4FD6 55%,#3B82F6);"></div><div style="position:absolute;right:-60px;top:-90px;width:230px;height:230px;border-radius:115px;background:rgba(11,79,214,0.05);"></div>${dots(PWd-MX-70,70,70,42)}`}`;
+            const hdrCache={};
+            const header=(label,ht)=>{
+                if(!BK) return headerStd(label,ht);
+                const t=ht||title; hdrCache[t]=hdrCache[t]||fit(t,`font-family:${SERIF};font-style:italic;font-size:11.5px;`,CW);
+                return `<div style="position:absolute;left:${MX}px;right:${MX}px;top:34px;text-align:center;font-family:${SERIF};font-style:italic;font-size:11.5px;line-height:18px;color:${MUTE};white-space:nowrap;">${esc(hdrCache[t])}</div><div style="position:absolute;left:${MX}px;right:${MX}px;top:58px;height:1px;background:${LINE};"></div>`;
             };
-            const contentPage=(pg,num)=>`<div class="bn-page" style="position:relative;width:${PWd}px;height:${PHt}px;background:#fff;overflow:hidden;">${chrome(num)}
-                <div style="position:absolute;left:${MARG}px;top:${MARG}px;width:${CW}px;height:${CH}px;z-index:1;overflow:hidden;">${pg.items.map(itemHtml).join('')}</div></div>`;
-            const tocAll=(heads.length?heads.map(h=>({t:h.text,p:h.page+1})):[{t:title,p:1}]);
-            const cell=(k,v,span)=>`<div style="${span?'grid-column:span 2;':''}display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid #e3e6ee;padding:2px 0;font-size:12.5px;line-height:22px;white-space:nowrap;"><span style="color:#777;">${k}</span><span style="overflow:hidden;text-overflow:ellipsis;">${v}</span></div>`;
-            // Fixed-size layout: title block, TOC box (shrinks to fit), info box, promo
-            const titleLinesN=Math.min(3,wordLines(title,30).length);
-            const titleH=titleLinesN*40+12, labelH=26, infoH=5*24+22, promoH=26, gapH=14;
-            const tocH=Math.max(60,CHG-titleH-labelH-infoH-promoH-gapH*2);
-            let cols=1, rowsN=tocAll.length, rowH=Math.min(26,tocH/rowsN);
-            if(rowH<17){ cols=2; rowsN=Math.ceil(tocAll.length/2); rowH=Math.min(26,tocH/rowsN); }
-            if(rowH<13){ cols=3; rowsN=Math.ceil(tocAll.length/3); rowH=Math.max(10,Math.min(26,tocH/rowsN)); }
-            const tocFs=Math.max(8,Math.min(14,rowH*0.55));
-            const tocRow=e=>`<div style="display:flex;align-items:baseline;gap:6px;height:${rowH}px;line-height:${rowH}px;font-size:${tocFs}px;overflow:hidden;white-space:nowrap;"><span style="color:${BLUE};overflow:hidden;text-overflow:ellipsis;max-width:78%;">${esc(e.t)}</span><span style="flex:1;border-bottom:1px dotted #999;transform:translateY(-3px);min-width:8px;"></span><span>${bn(e.p)}</span></div>`;
-            const tocHtml=`<div style="display:grid;grid-template-columns:repeat(${cols},1fr);column-gap:${cols>1?22:0}px;grid-auto-flow:column;grid-template-rows:repeat(${rowsN},${rowH}px);">${tocAll.map(tocRow).join('')}</div>`;
-            const greeting=`<div class="bn-page" style="position:relative;width:${PWd}px;height:${PHt}px;background:#fff;overflow:hidden;">${chrome(0)}
-                <div style="position:absolute;left:${MARG}px;top:${MARG}px;width:${CW}px;height:${CHG}px;z-index:1;font-family:'Tiro Bangla',serif;overflow:hidden;">
-                  <div style="height:${titleH}px;overflow:hidden;font-size:30px;line-height:40px;color:${BLUE};">${esc(title)}</div>
-                  <div style="height:${labelH}px;line-height:${labelH}px;font-size:14px;color:#444;">সূচিপত্র</div>
-                  <div style="height:${tocH}px;overflow:hidden;margin-bottom:${gapH}px;">${tocHtml}</div>
-                  <div style="height:${infoH}px;box-sizing:border-box;background:#f4f6fb;border-radius:10px;padding:8px 14px;display:grid;grid-template-columns:1fr 1fr;column-gap:22px;align-content:start;overflow:hidden;margin-bottom:${gapH}px;">
-                    ${cell('লিখেছেন:','Mohtadi Azad Mahi')}${cell('প্রকাশিত:',pubDate)}${cell('তৈরি হয়েছে:',createdDate,true)}
-                    ${cell('শব্দ:',bn(words))}${cell('অনুচ্ছেদ:',bn(paras))}${cell('কবিতা:',bn(poems))}${cell('বাক্য:',bn(sentences))}${cell('পৃষ্ঠা:',bn(total))}
-                  </div>
-                  <div style="height:${promoH}px;line-height:${promoH}px;text-align:center;font-size:13px;"><a data-url="${PRO_URL}" style="color:${BLUE};text-decoration:underline;">DocuWrite Pro দিয়ে এমন চমৎকার ডকুমেন্ট তৈরি করুন</a></div>
-                </div></div>`;
-            const pagesHtml=[greeting,...bodyPages.map((p,i)=>contentPage(p,i+1)),...sumPages.map(p=>contentPage(p,0))];
+            const footer=label=>BK?(label?`<div style="position:absolute;left:${MX}px;right:${MX}px;bottom:34px;text-align:center;font-family:${SERIF};font-size:12px;line-height:18px;color:${INK};">${label}</div>`:''):footerStd();
+            const pageWrap=(inner,cover)=>`<div class="bn-page" style="position:relative;width:${PWd}px;height:${PHt}px;background:${BK?'#FFFDF8':'#fff'};overflow:hidden;">${BK?'':bgArt(cover)}${inner}</div>`;
+            const contentPage=(pg,label,ht)=>pageWrap(`${header(label,ht)}<div style="position:absolute;left:${MX}px;top:${TOPY}px;width:${CW}px;height:${CHH}px;overflow:hidden;">${pg.items.map(itemHtml).join('')}</div>${footer(label)}`);
 
-            // Render
+            // ── Cover + table of contents ─────────────────────────────────────
+            let tfs=36, tl=[];
+            for(const f of [36,32,29,26,23]){ tfs=f; tl=wordLines(title,CW-100,`font-family:${SERIF};font-size:${f}px;line-height:${Math.round(f*1.35)}px;`); if(tl.length<=3) break; }
+            const tlh=Math.round(tfs*1.35), tN=Math.min(3,tl.length);
+            const heroH=44+26+18+tN*tlh+14+20+62;
+            const tocTop=heroH+72, tocAvail=PHt-tocTop-62-44-18-34;
+            const entries=[];
+            blocks.forEach(b=>{ if(b.t==='h') entries.push({t:b.text,p:b.page+1,sec:true}); else if(b.t==='pt') entries.push({t:b.text,p:b.page+1,no:b.no}); });
+            if(sumPages.length) entries.push({t:'সারসংক্ষেপ',p:bodyPages.length+1,sec:true,sum:true});
+            const showToc=entries.length>=2;
+            const ROW1=32, ROW2=28;
+            let coverCols=1, rowH=ROW1, tocFs=13.5, perCol=Math.floor(tocAvail/rowH);
+            if(entries.length>perCol){ coverCols=2; rowH=ROW2; tocFs=12.5; perCol=Math.floor(tocAvail/rowH); }
+            const coverEntries=showToc?entries.slice(0,perCol*coverCols):[];
+            const restEntries=showToc?entries.slice(perCol*coverCols):[];
+            const contPer=Math.floor((CHH-34)/ROW2), tocExtra=[];
+            for(let i=0;i<restEntries.length;i+=contPer*2) tocExtra.push(restEntries.slice(i,i+contPer*2));
+            const pdfPageOf=p=>1+tocExtra.length+p;
+            const tocRow=(e,colW,rH,fs)=>{
+                const chipW=24, gap=10, pageW=28, leaderMin=24;
+                const css=`font-family:${SANS};font-size:${fs}px;font-weight:${e.sec?700:500};`;
+                const tx=fit(e.t,css,colW-chipW-gap*3-pageW-leaderMin);
+                const chip=e.no
+                    ?`<div style="flex:0 0 ${chipW}px;height:${chipW}px;border-radius:8px;background:${TINT};color:${BLUE};font-family:${SANS};font-weight:700;font-size:10.5px;line-height:${chipW}px;text-align:center;">${bn(String(e.no).padStart(2,'0'))}</div>`
+                    :`<div style="flex:0 0 ${chipW}px;height:${chipW}px;border-radius:8px;background:${BLUE};position:relative;"><div style="position:absolute;left:9px;top:9px;width:6px;height:6px;border-radius:3px;background:#fff;"></div></div>`;
+                return `<div data-page="${pdfPageOf(e.p)}" style="display:flex;align-items:center;gap:${gap}px;height:${rH}px;">${chip}<div style="${css}color:${e.sec?DEEP:INK};white-space:nowrap;line-height:${rH}px;">${esc(tx)}</div><div style="flex:1;min-width:${leaderMin}px;height:0;border-bottom:1.5px dotted #B7BFD3;position:relative;top:5px;"></div><div style="flex:0 0 ${pageW}px;text-align:right;font-family:${SANS};font-weight:600;font-size:${fs}px;color:${BLUE};">${e.sum?'':bn(e.p)}</div></div>`;
+            };
+            const tocCols=(list,cols,per,rH,fs)=>{
+                const colW=(CW-(cols-1)*28)/cols;
+                return `<div style="display:flex;gap:28px;">${Array.from({length:cols},(_,c)=>`<div style="width:${colW}px;">${list.slice(c*per,(c+1)*per).map(e=>tocRow(e,colW,rH,fs)).join('')}</div>`).join('')}</div>`;
+            };
+            const tocLabel=txt=>`<div style="display:flex;align-items:center;gap:10px;height:34px;font-family:${SANS};font-weight:700;font-size:15px;color:${DEEP};"><div style="width:4px;height:18px;border-radius:2px;background:${BLUE};"></div><span>${txt}</span></div>`;
+            const statsHtml=stats.map((s,i)=>`<div style="flex:1;text-align:center;padding:14px 0 12px;${i?`border-left:1px solid ${LINE};`:''}"><div style="font-family:${SANS};font-weight:700;font-size:19px;line-height:26px;color:${DEEP};">${s[1]}</div><div style="font-family:${SANS};font-size:10.5px;line-height:16px;color:${MUTE};">${s[0]}</div></div>`).join('');
+            const cover=pageWrap(`
+                <div style="position:absolute;left:0;top:0;width:${PWd}px;height:${heroH}px;overflow:hidden;background:linear-gradient(135deg,#0A2A6B 0%,#0B4FD6 62%,#3B82F6 100%);">
+                    <div style="position:absolute;right:-70px;top:-90px;width:300px;height:300px;border-radius:150px;background:rgba(255,255,255,0.07);"></div>
+                    <div style="position:absolute;right:96px;bottom:-120px;width:210px;height:210px;border-radius:105px;background:rgba(255,255,255,0.06);"></div>
+                    ${qrData?`<div style="position:absolute;right:${MX}px;top:36px;width:84px;height:84px;box-sizing:border-box;padding:7px;background:#fff;border-radius:14px;"><img src="${qrData}" style="display:block;width:70px;height:70px;"></div><div style="position:absolute;right:${MX}px;top:126px;width:84px;text-align:center;font-family:${SANS};font-size:9px;line-height:14px;color:rgba(255,255,255,0.85);">স্ক্যান করে শেয়ার করুন</div>`:''}
+                    <div style="position:absolute;left:${MX}px;right:${MX}px;top:44px;">
+                        <div style="height:26px;"><span style="display:inline-block;background:rgba(255,255,255,0.18);color:#fff;font-family:${SANS};font-weight:500;font-size:11px;line-height:18px;padding:4px 14px;border-radius:14px;">DocuComp রচনা</span></div>
+                        <div style="margin-top:18px;width:${CW-100}px;height:${tN*tlh}px;overflow:hidden;font-family:${SERIF};font-size:${tfs}px;line-height:${tlh}px;color:#fff;">${esc(title)}</div>
+                        <div style="margin-top:14px;font-family:${SANS};font-size:13px;line-height:20px;color:rgba(255,255,255,0.9);">Mohtadi Azad Mahi &nbsp;·&nbsp; প্রকাশিত ${pubDate}</div>
+                    </div>
+                </div>
+                <div style="position:absolute;left:${MX}px;right:${MX}px;top:${heroH-40}px;height:80px;box-sizing:border-box;display:flex;background:#fff;border:1px solid ${LINE};border-radius:16px;box-shadow:0 8px 24px rgba(10,42,107,0.15);overflow:hidden;">${statsHtml}</div>
+                <div style="position:absolute;left:${MX}px;top:${heroH+48}px;font-family:${SANS};font-size:10.5px;line-height:16px;color:${MUTE};">তৈরি হয়েছে: ${createdDate}</div>
+                ${showToc?`<div style="position:absolute;left:${MX}px;width:${CW}px;top:${tocTop}px;">${tocLabel('সূচিপত্র')}${tocCols(coverEntries,coverCols,perCol,rowH,tocFs)}</div>`:''}
+                <div data-url="${PRO_URL}" style="position:absolute;left:${MX}px;right:${MX}px;bottom:62px;height:44px;display:flex;align-items:center;justify-content:space-between;box-sizing:border-box;padding:0 10px 0 20px;background:linear-gradient(90deg,#E9F0FF,#F6F8FF);border-radius:14px;font-family:${SANS};font-weight:500;font-size:12.5px;color:${DEEP};"><span>DocuWrite Pro দিয়ে এমন চমৎকার ডকুমেন্ট তৈরি করুন</span><span style="display:block;width:26px;height:26px;border-radius:13px;background:${BLUE};color:#fff;text-align:center;line-height:25px;font-size:14px;">→</span></div>
+                ${footer()}`,true);
+            const tocPage=list=>pageWrap(`${header('সূচিপত্র')}<div style="position:absolute;left:${MX}px;width:${CW}px;top:${TOPY}px;">${tocLabel('সূচিপত্র (চলমান)')}${tocCols(list,2,contPer,ROW2,12.5)}</div>${footer()}`);
+
+            const bookletPagesHtml=()=>{
+                const essays=opts.booklet.map((it,i)=>{
+                    const bl=parse(it.raw);
+                    bl.unshift({t:'etitle',text:it.title,no:i+1,date:fmt(it.dateStr||Date.now())});
+                    const body=bl.filter(b=>b.t!=='etitle');
+                    return {it,blocks:bl,pages:paginate(bl),
+                        words:body.map(textOf).join(' ').split(/\s+/).filter(Boolean).length,
+                        paras:body.filter(b=>b.t==='p').length, poems:body.filter(b=>b.t==='poem').length,
+                        pts:body.filter(b=>b.t==='pt').length};
+                });
+                let run=0; essays.forEach(e=>{ e.start=run+1; run+=e.pages.length; });
+                const sum=k=>essays.reduce((a,e)=>a+e[k],0);
+                const totalPages=run;
+                const tocE=[];
+                essays.forEach((e,i)=>{
+                    tocE.push({t:e.it.title,p:e.start,no:i+1,ess:true,st:`শব্দ ${bn(e.words)} · অনুচ্ছেদ ${bn(e.paras)} · কবিতা ${bn(e.poems)}`});
+                    e.blocks.forEach(b=>{ if(b.t==='pt'||b.t==='h') tocE.push({t:b.text,p:e.start+b.page,sub:true}); });
+                });
+                const ESS_H=56, SUB_H=22, cap=CHH-60, tocPgs=[]; let cur=[], used=0;
+                tocE.forEach(e=>{
+                    const h=e.ess?ESS_H+SUB_H:SUB_H;
+                    if(used+h>cap && cur.length){ tocPgs.push(cur); cur=[]; used=0; }
+                    used+=e.ess?ESS_H:SUB_H; cur.push(e);
+                });
+                if(cur.length) tocPgs.push(cur);
+                const F=3+tocPgs.length;
+                const bRow=e=>{
+                    const ind=e.sub?30:0, fs=e.ess?14.5:12, gap=10, pageW=30, numW=e.ess?26:0;
+                    const css=`font-family:${SERIF};font-size:${fs}px;${e.ess?'font-weight:700;':''}`;
+                    const tx=fit(e.t,css,CW-ind-numW-gap*2-pageW-24);
+                    const row=`<div data-page="${F+e.p}" style="display:flex;align-items:baseline;gap:${gap}px;height:${e.ess?30:SUB_H}px;line-height:${e.ess?30:SUB_H}px;padding-left:${ind}px;">${e.ess?`<div style="flex:0 0 ${numW}px;font-family:${SERIF};font-size:${fs}px;color:${MUTE};">${bn(e.no)}.</div>`:''}<div style="${css}color:${e.ess?DEEP:INK};white-space:nowrap;">${esc(tx)}</div><div style="flex:1;min-width:24px;height:0;border-bottom:1px dotted #8A8578;"></div><div style="flex:0 0 ${pageW}px;text-align:right;font-family:${SERIF};font-size:${fs}px;color:${INK};">${bn(e.p)}</div></div>`;
+                    return e.ess?`<div style="padding-top:6px;">${row}<div style="padding-left:${numW+gap}px;height:20px;font-family:${SERIF};font-style:italic;font-size:11px;line-height:20px;color:${MUTE};">${e.st}</div></div>`:row;
+                };
+                const bTocPage=(list,first)=>pageWrap(`${header('','সূচিপত্র')}<div style="position:absolute;left:${MX}px;width:${CW}px;top:${TOPY}px;"><div style="text-align:center;font-family:${SERIF};font-size:24px;line-height:36px;color:${DEEP};">${first?'সূচিপত্র':'সূচিপত্র (চলমান)'}</div><div style="width:44px;height:1px;background:${INK};margin:6px auto 4px;"></div>${list.map(bRow).join('')}</div>`);
+                const today=fmt(Date.now()), year=bn(new Date().getFullYear());
+                const GOLD='#C8B27A', CREAM='#F3EBD8';
+                const bCover=`<div class="bn-page" style="position:relative;width:${PWd}px;height:${PHt}px;background:#1B2A49;overflow:hidden;">
+                    <div style="position:absolute;left:34px;top:34px;right:34px;bottom:34px;border:1.5px solid ${GOLD};"></div>
+                    <div style="position:absolute;left:44px;top:44px;right:44px;bottom:44px;border:1px solid ${GOLD};"></div>
+                    <div style="position:absolute;left:0;right:0;top:190px;padding:0 90px;text-align:center;">
+                        <div style="font-family:${SERIF};font-size:46px;line-height:64px;color:${CREAM};">${esc(title)}</div>
+                        <div style="width:64px;height:1px;background:${GOLD};margin:30px auto;"></div>
+                        <div style="font-family:${SERIF};font-size:21px;line-height:32px;color:${CREAM};">Mohtadi Azad Mahi</div>
+                        <div style="margin-top:16px;font-family:${SERIF};font-style:italic;font-size:13.5px;line-height:20px;color:${GOLD};">আর্কাইভ: ${today}</div>
+                    </div></div>`;
+                const cpLine=t=>`<div style="font-family:${SERIF};font-size:13px;line-height:24px;color:${INK};margin-bottom:8px;">${t}</div>`;
+                const copyright=pageWrap(`<div style="position:absolute;left:${MX+40}px;right:${MX+40}px;top:480px;text-align:center;">
+                    <div style="font-family:${SERIF};font-size:15px;line-height:24px;font-weight:700;color:${DEEP};margin-bottom:14px;">${esc(title)}</div>
+                    ${cpLine(`© ${year} Mohtadi Azad Mahi। সর্বস্বত্ব সংরক্ষিত।`)}
+                    ${cpLine('এই সংকলনের সকল রচনার স্বত্ব লেখকের। লেখকের লিখিত অনুমতি ছাড়া এর কোনো অংশ অনুলিপি, পুনর্মুদ্রণ, বিতরণ বা বাণিজ্যিক কাজে ব্যবহার করা যাবে না।')}
+                    <div style="width:36px;height:1px;background:${INK};margin:16px auto;"></div>
+                    ${cpLine('প্রকাশনা: DocuComp')}
+                    ${cpLine(`ডিজিটাল সংস্করণ (PDF) · সংকলিত: ${createdDate}`)}
+                    ${cpLine(`<span data-url="${COMP_URL}" style="text-decoration:underline;">mahi902.github.io/DocuComp</span>`)}
+                </div>`);
+                const para=t=>`<div style="font-family:${SERIF};font-size:13.5px;line-height:23px;text-align:justify;color:${INK};margin-bottom:8px;">${t}</div>`;
+                const h2=t=>`<div style="margin:20px 0 6px;font-family:${SERIF};font-size:18px;line-height:26px;font-weight:700;color:${DEEP};">${t}</div>`;
+                const sr=(l,v)=>`<div style="display:flex;align-items:baseline;gap:10px;height:25px;line-height:25px;font-family:${SERIF};font-size:13.5px;color:${INK};"><div>${l}</div><div style="flex:1;height:0;border-bottom:1px dotted #8A8578;"></div><div>${v}</div></div>`;
+                const info=pageWrap(`${header('','DocuComp রচনা সংকলন')}<div style="position:absolute;left:${MX}px;width:${CW}px;top:${TOPY}px;height:${CHH}px;overflow:hidden;">
+                    <div style="font-family:${SERIF};font-size:24px;line-height:34px;color:${DEEP};">এই সংকলন সম্পর্কে</div>
+                    <div style="width:44px;height:1px;background:${INK};margin:8px 0 14px;"></div>
+                    ${para('এটি DocuComp-এ প্রকাশিত Mohtadi Azad Mahi-র বাংলা রচনার সংকলন। রচনাগুলো বাংলা বর্ণানুক্রমে সাজানো; প্রতিটি রচনা নতুন পৃষ্ঠা থেকে শুরু।')}
+                    ${para('সূচিপত্রে প্রতিটি রচনার শব্দ, অনুচ্ছেদ ও কবিতার সংখ্যা এবং পয়েন্টের পৃষ্ঠা-নম্বর আছে; যেকোনো সারিতে ট্যাপ করলে সেই পৃষ্ঠায় যাওয়া যাবে।')}
+                    <div style="margin:14px 0 0;padding:8px 0;border-top:1px solid ${INK};border-bottom:1px solid ${INK};">${sr('মোট রচনা',bn(essays.length))}${sr('মোট শব্দ',bn(sum('words')))}${sr('মোট অনুচ্ছেদ',bn(sum('paras')))}${sr('মোট কবিতা',bn(sum('poems')))}${sr('মোট পয়েন্ট',bn(sum('pts')))}${sr('মোট পৃষ্ঠা',bn(totalPages))}</div>
+                    ${h2('DocuComp')}
+                    ${para(`বাংলা ও ইংরেজি রচনা পড়া, অনুবাদ করা ও PDF হিসেবে সংরক্ষণের পাঠ-প্ল্যাটফর্ম। আরও রচনা: <span data-url="${COMP_URL}" style="color:${BLUE};text-decoration:underline;">mahi902.github.io/DocuComp</span>`)}
+                    ${h2('DocuWrite Pro')}
+                    ${para('ব্রাউজারেই লেখা, সাজানো ও ডকুমেন্ট তৈরির ওয়েব-ভিত্তিক এডিটর।')}
+                    <div data-url="${PRO_URL}" style="border:1px solid ${INK};padding:9px 16px;margin-top:10px;text-align:center;font-family:${SERIF};font-size:13px;line-height:22px;color:${DEEP};text-decoration:underline;">https://mahi902.github.io/DocuWritePro</div>
+                </div>`);
+                return [bCover,copyright,info,...tocPgs.map((l,i)=>bTocPage(l,i===0)),
+                    ...essays.flatMap(e=>e.pages.map((pg,i)=>contentPage(pg,bn(e.start+i),e.it.title)))];
+            };
+            const pagesHtml=opts.booklet?bookletPagesHtml():[cover,...tocExtra.map(tocPage),
+                ...bodyPages.map((p,i)=>contentPage(p,`পৃষ্ঠা ${bn(i+1)} / ${bn(N)}`)),
+                ...sumPages.map(p=>contentPage(p,'সারসংক্ষেপ'))];
+
+            // ── Render ────────────────────────────────────────────────────────
             const {jsPDF}=window.jspdf;
             const pdf=new jsPDF({unit:'pt',format:[PWd,PHt],compress:true});
             for(let i=0;i<pagesHtml.length;i++) {
                 showPDFProgress(`Rendering page ${i+1} of ${pagesHtml.length}…`);
                 sandbox.innerHTML=pagesHtml[i];
                 const el=sandbox.firstElementChild, box=el.getBoundingClientRect();
-                const links=[...el.querySelectorAll('a[data-url]')].map(a=>{const r=a.getBoundingClientRect();return {x:r.left-box.left,y:r.top-box.top,w:r.width,h:r.height,url:a.dataset.url};});
-                const canvas=await html2canvas(el,{scale:2.5,backgroundColor:'#ffffff',useCORS:true,logging:false});
+                const rect=a=>{const r=a.getBoundingClientRect();return {x:r.left-box.left,y:r.top-box.top,w:r.width,h:r.height};};
+                const urlLinks=[...el.querySelectorAll('[data-url]')].map(a=>({...rect(a),url:a.dataset.url}));
+                const pageLinks=[...el.querySelectorAll('[data-page]')].map(a=>({...rect(a),pageNumber:+a.dataset.page}));
+                const canvas=await html2canvas(el,{scale:opts.booklet?2:2.5,backgroundColor:'#ffffff',useCORS:true,logging:false});
                 if(i>0) pdf.addPage([PWd,PHt]);
-                pdf.addImage(canvas.toDataURL('image/jpeg',0.93),'JPEG',0,0,PWd,PHt,'','FAST');
-                links.forEach(l=>pdf.link(l.x,l.y,l.w,l.h,{url:l.url}));
+                pdf.addImage(canvas.toDataURL('image/jpeg',opts.booklet?0.86:0.93),'JPEG',0,0,PWd,PHt,'','FAST');
+                urlLinks.forEach(l=>pdf.link(l.x,l.y,l.w,l.h,{url:l.url}));
+                pageLinks.forEach(l=>pdf.link(l.x,l.y,l.w,l.h,{pageNumber:l.pageNumber}));
             }
             document.body.removeChild(sandbox);
-            pdf.save(`${(title.replace(/[\\/:*?"<>|]/g,'').trim()||'composition')}.pdf`);
+            pdf.save(opts.booklet?`DocuComp-Bangla-Booklet-${opts.booklet.length}-compositions-${(()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})()}.pdf`:`${(title.replace(/[\\/:*?"<>|]/g,'').trim()||'composition')}.pdf`);
+        }
+
+        async function downloadBooklet() {
+            const list=[...(postsByLang.bn||[])].filter(p=>p.raw||p.content).sort((a,b)=>String(a.title).localeCompare(String(b.title),'bn'));
+            if(!list.length){ showToast('No Bangla compositions found'); return; }
+            showPDFProgress('Preparing booklet…');
+            await new Promise(r=>setTimeout(r,180));
+            try {
+                await buildBanglaPDF({title:'DocuComp রচনা সংকলন',dateStr:Date.now()},'DocuComp রচনা সংকলন','',null,{booklet:list.map(p=>({title:p.title,raw:p.raw||p.content,dateStr:p.dateStr}))});
+                hidePDFProgress(); showToast('Booklet downloaded!');
+            } catch(err) { hidePDFProgress(); console.error('Booklet error:',err); showToast('Booklet failed — check console'); }
         }
 
         async function downloadPDF(forceGenerate) {
             if(!currentPost) return;
             if(currentPost.pdfUrl && forceGenerate!==true) { await downloadArchivedPDF(); return; }
             closeModals();
-            const inclImages  = document.getElementById('dl-images').checked;
-            const inclBg      = document.getElementById('dl-bgcolor').checked;
-            const inclPageNums= document.getElementById('dl-pagenums').checked;
-            const inclJustify = document.getElementById('dl-justify').checked;
-            const alignMode   = inclJustify ? 'justify' : 'left';
+            const inclImages=true, inclBg=false, inclPageNums=true, alignMode='justify';
             const langSel = document.getElementById('dl-language');
             const sourceLang = getSourceLangCode(currentPost);
             const dlLangCode = langSel && langSel.value ? langSel.value : sourceLang;
@@ -2292,7 +2543,8 @@
                 const isBn = dlLangCode==='bn' || (dlLangCode===sourceLang && currentPost.lang==='bn');
                 if(isBn) {
                     const summ = (dlLangCode===sourceLang) ? currentPost.summary : null;
-                    await buildBanglaPDF(currentPost, pdfTitle, pdfContent, summ);
+                    const mdSrc=(dlLangCode===sourceLang && currentPost.raw) ? currentPost.raw : pdfContent;
+                    await buildBanglaPDF(currentPost, pdfTitle, mdSrc, summ);
                     hidePDFProgress(); showToast('PDF downloaded!'); return;
                 }
                 const {jsPDF} = window.jspdf;
