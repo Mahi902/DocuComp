@@ -351,7 +351,50 @@
         .structure-options-row { display: flex; gap: 14px; margin-top: 16px; flex-wrap: wrap; }
         .mini-select-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 140px; }
         .mini-select-group label { font-size: 0.72rem; font-weight: 700; color: var(--md-outline); text-transform: uppercase; letter-spacing: 0.05em; }
-    </style>
+    
+        /* ── Bangla index (hidden page) ─────────────────────────────────── */
+        #bn-index-view { font-family: 'Noto Sans Bengali', var(--font-family); }
+        .bni-jump { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 28px; }
+        .bni-jump a { text-decoration:none; color:var(--md-on-surface); background:var(--md-surface-container); border-radius:14px; padding:6px 14px; font-size:0.9rem; }
+        .bni-jump a:hover { background:var(--md-primary); color:var(--md-on-primary); }
+        .bni-comp { margin:0 0 44px; scroll-margin-top:90px; }
+        .bni-comp-title { font-size:1.55rem; font-weight:700; margin:0 0 4px; line-height:1.4; }
+        .bni-comp-meta { color:var(--md-outline); font-size:0.9rem; margin:0 0 14px; }
+        .bni-point { border-top:1px solid var(--md-surface-variant); }
+        .bni-point:last-child { border-bottom:1px solid var(--md-surface-variant); }
+        .bni-point-head { all:unset; box-sizing:border-box; display:flex; align-items:flex-start; justify-content:space-between; gap:12px; width:100%; padding:14px 4px 6px; cursor:pointer; font-family:inherit; font-weight:600; font-size:1.05rem; line-height:1.5; color:var(--md-on-surface); }
+        .bni-point-head:focus-visible { outline:2px solid var(--md-primary); outline-offset:2px; border-radius:6px; }
+        .bni-chev { flex-shrink:0; transition:transform .25s ease; color:var(--md-outline); }
+        .bni-point.open .bni-chev { transform:rotate(180deg); }
+        .bni-poems { padding:0 4px 12px; display:flex; flex-direction:column; gap:10px; }
+        .bni-poem { border-left:3px solid var(--md-primary); padding:4px 0 4px 14px; line-height:1.95; font-size:1rem; color:var(--md-on-surface); }
+        .bni-empty { color:var(--md-outline); font-size:0.88rem; padding:0 4px 12px; }
+        .bni-body-wrap { display:grid; grid-template-rows:0fr; transition:grid-template-rows .3s ease; }
+        .bni-point.open .bni-body-wrap { grid-template-rows:1fr; }
+        .bni-body { overflow:hidden; min-height:0; }
+        .bni-body-inner { padding:4px 4px 18px; border-top:1px dashed var(--md-surface-variant); margin-top:2px; }
+        .bni-para { margin:12px 0; line-height:1.95; font-size:1rem; }
+        .bni-para.poem { border-left:3px solid var(--md-primary); padding-left:14px; }
+
+        .bni-toolbar { display:flex; gap:10px; margin:0 0 18px; flex-wrap:wrap; }
+        .bni-btn { all:unset; box-sizing:border-box; cursor:pointer; display:inline-flex; align-items:center; gap:8px; background:var(--md-primary); color:var(--md-on-primary); border-radius:20px; padding:10px 18px; font-family:inherit; font-weight:600; font-size:0.95rem; }
+        .bni-btn:focus-visible { outline:2px solid var(--md-primary); outline-offset:2px; }
+        .bni-btn.alt { background:var(--md-surface-container); color:var(--md-on-surface); }
+        .bnc-item { border-top:1px solid var(--md-surface-variant); }
+        .bnc-item:last-child { border-bottom:1px solid var(--md-surface-variant); }
+        .bnc-head { all:unset; box-sizing:border-box; display:flex; align-items:flex-start; gap:12px; width:100%; padding:14px 4px; cursor:pointer; font-family:inherit; color:var(--md-on-surface); }
+        .bnc-head:focus-visible { outline:2px solid var(--md-primary); outline-offset:2px; border-radius:6px; }
+        .bnc-badge { flex-shrink:0; min-width:38px; text-align:center; background:var(--md-primary); color:var(--md-on-primary); border-radius:14px; padding:2px 10px; font-weight:700; font-size:0.95rem; margin-top:4px; }
+        .bnc-text { flex:1; line-height:1.95; font-size:1rem; border-left:3px solid var(--md-primary); padding-left:14px; }
+        .bnc-item.open .bni-chev { transform:rotate(180deg); }
+        .bnc-detail { display:none; padding:0 4px 16px 4px; }
+        .bnc-item.open .bnc-detail { display:block; }
+        .bnc-occ { margin:8px 0; padding:8px 12px; background:var(--md-surface-container); border-radius:12px; font-size:0.92rem; line-height:1.7; }
+        .bnc-occ b { font-weight:700; }
+        .bnc-var { margin:8px 0 2px; line-height:1.9; font-size:0.95rem; padding-left:12px; border-left:2px dashed var(--md-outline); color:var(--md-on-surface); }
+        .bnc-sub { font-size:0.8rem; color:var(--md-outline); margin:12px 0 2px; font-weight:700; }
+        @media (prefers-reduced-motion: reduce) { .bni-body-wrap, .bni-chev { transition:none; } }
+</style>
     
   
 </head>
@@ -580,11 +623,22 @@
                     <div class="lang-toggle" id="lang-toggle">
                         <div class="lang-toggle-thumb" id="lang-toggle-thumb"></div>
                         <button class="lang-toggle-opt active" data-lang="en" onclick="switchLanguage('en')">English</button>
-                        <button class="lang-toggle-opt" data-lang="bn" onclick="switchLanguage('bn')">বাংলা</button>
+                        <button class="lang-toggle-opt" data-lang="bn" onclick="switchLanguage('bn'); bnSecretTap();">বাংলা</button>
                     </div>
                 </div>
             </div>
             <div class="grid" id="home-grid"></div>
+        </div>
+
+        <!-- Bangla index view (opened by tapping বাংলা five times) -->
+        <div id="bn-index-view" class="view">
+            <div class="top-bar" style="margin-bottom:24px;border-radius:16px;">
+                <button class="icon-btn" style="box-shadow:none;width:40px;height:40px;" onclick="showView('home-view')" aria-label="Back">
+                    <span class="material-symbols-outlined">arrow_back</span>
+                </button>
+                <span style="font-weight:600;font-size:1.1rem;">বাংলা রচনার সূচি</span>
+            </div>
+            <div id="bn-index-root"></div>
         </div>
 
         <!-- Search View -->
@@ -1207,6 +1261,111 @@
             document.getElementById('archive-modal').classList.add('open');
         }
 
+
+        // ── Bangla index: five quick taps on "বাংলা" open a page listing every composition,
+        // its points, and the poems under each point. Click a point to expand its content.
+        let bnTapCount=0, bnTapTimer=null;
+        function bnSecretTap() {
+            bnTapCount++; clearTimeout(bnTapTimer);
+            bnTapTimer=setTimeout(()=>{ bnTapCount=0; }, 1500);
+            if(bnTapCount>=5){ bnTapCount=0; clearTimeout(bnTapTimer); openBnIndex(); }
+        }
+        function bnEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        // Every single newline in the source becomes a <br>, so poem lines stay exactly as written.
+        function bnLines(s){ return bnEsc(s).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').split('\n').join('<br>'); }
+        function bnParsePoints(post) {
+            let text=(post.content||'').replace(/\r\n?/g,'\n');
+            text=text.replace(/(?:<|&lt;)(DCP|PDF|SUMM)(?:>|&gt;)[\s\S]*?(?:<|&lt;)\/\1(?:>|&gt;)/gi,'');
+            text=text.replace(/(?:^|\n)[ \t]*#[^\s#][^\n]*(?=\n*$)/,'');
+            const paras=text.split(/\n[ \t]*\n+/).map(p=>p.replace(/^\n+/,'').replace(/\s+$/,'')).filter(p=>p.trim());
+            const points=[]; let cur=null;
+            const add=(pt,t)=>{
+                const s=t.trim(); if(!s) return;
+                const poem=/^[“"‘]/.test(s)&&/[”"’]$/.test(s);
+                pt.paras.push({text:t.replace(/^\n+/,''),poem});
+                if(poem) pt.poems.push(t.replace(/^\n+/,''));
+            };
+            for(const p of paras) {
+                const m=p.match(/^\*\*(.+?)\*\*[ \t]*[:：]?[ \t]*([\s\S]*)$/);
+                if(m){ cur={title:m[1].replace(/[:：]\s*$/,'').trim(),paras:[],poems:[]}; points.push(cur); add(cur,m[2]); }
+                else { if(!cur){ cur={title:'পূর্ণ রচনা',paras:[],poems:[]}; points.push(cur); } add(cur,p); }
+            }
+            return points;
+        }
+        function openBnIndex() {
+            const root=document.getElementById('bn-index-root');
+            const posts=postsByLang.bn||[];
+            if(!posts.length){ root.innerHTML='<p class="bni-empty">বাংলা রচনা এখনো লোড হয়নি। একটু পরে আবার চেষ্টা করুন।</p>'; showView('bn-index-view'); return; }
+            const jump=posts.map((p,i)=>`<a href="#bni-${i}" onclick="event.preventDefault();document.getElementById('bni-${i}').scrollIntoView({behavior:'smooth'})">${bnEsc(p.title)}</a>`).join('');
+            const comps=posts.map((p,i)=>{
+                const pts=bnParsePoints(p);
+                const poemTotal=pts.reduce((n,x)=>n+x.poems.length,0);
+                const rows=pts.map((pt,j)=>{
+                    const poems=pt.poems.length
+                        ? `<div class="bni-poems">${pt.poems.map(t=>`<div class="bni-poem">${bnLines(t)}</div>`).join('')}</div>`
+                        : `<div class="bni-empty">এই পয়েন্টে কোনো কবিতা নেই</div>`;
+                    const body=pt.paras.map(x=>`<div class="bni-para${x.poem?' poem':''}">${bnLines(x.text)}</div>`).join('');
+                    return `<div class="bni-point" id="bni-${i}-${j}">
+                        <button class="bni-point-head" aria-expanded="false" onclick="bnTogglePoint(this)"><span>${bnEsc(pt.title)}</span><span class="material-symbols-outlined bni-chev">expand_more</span></button>
+                        ${poems}
+                        <div class="bni-body-wrap"><div class="bni-body"><div class="bni-body-inner">${body}</div></div></div>
+                    </div>`;
+                }).join('');
+                return `<section class="bni-comp" id="bni-${i}"><h2 class="bni-comp-title">${bnEsc(p.title)}</h2><div class="bni-comp-meta">${pts.length}টি পয়েন্ট, ${poemTotal}টি কবিতা</div>${rows}</section>`;
+            }).join('');
+            root.innerHTML=`<div class="bni-toolbar"><button class="bni-btn" onclick="openBnCount()"><span class="material-symbols-outlined">format_list_numbered</span>সংখ্যা অনুযায়ী তালিকা</button></div><nav class="bni-jump">${jump}</nav>${comps}`;
+            showView('bn-index-view');
+        }
+
+        // ── Poem count list: every poem grouped across all compositions (ignoring punctuation,
+        // spacing and line breaks), sorted most → least. The most common wording/line-layout is shown;
+        // clicking reveals every composition + point it appears in, plus the other variants.
+        function bnPoemKey(t){ return t.replace(/[\s\u200c\u200d]+/g,'').replace(/[^\p{L}\p{M}\p{N}]/gu,''); }
+        function bnPoemNorm(t){ return t.split('\n').map(l=>l.trim()).filter(l=>l).join('\n'); }
+        function bnCountPoems(){
+            const posts=postsByLang.bn||[]; const map=new Map();
+            posts.forEach(p=>{
+                bnParsePoints(p).forEach(pt=>{
+                    pt.poems.forEach(raw=>{
+                        const text=bnPoemNorm(raw); const key=bnPoemKey(text); if(!key) return;
+                        let g=map.get(key); if(!g){ g={key,occ:[],vars:new Map()}; map.set(key,g); }
+                        g.occ.push({comp:p.title,point:pt.title,text});
+                        g.vars.set(text,(g.vars.get(text)||0)+1);
+                    });
+                });
+            });
+            const list=[...map.values()].map(g=>{
+                const vars=[...g.vars.entries()].sort((a,b)=>b[1]-a[1]);
+                return {count:g.occ.length,best:vars[0][0],vars,occ:g.occ};
+            });
+            list.sort((a,b)=>b.count-a.count);
+            return list;
+        }
+        function openBnCount(){
+            const root=document.getElementById('bn-index-root');
+            const list=bnCountPoems();
+            const bnNum=n=>String(n).replace(/\d/g,d=>'০১২৩৪৫৬৭৮৯'[d]);
+            const items=list.map((g,i)=>{
+                const occ=g.occ.map(o=>`<div class="bnc-occ"><b>${bnEsc(o.comp)}</b> → ${bnEsc(o.point)}${o.text!==g.best?`<div class="bnc-var">${bnLines(o.text)}</div>`:''}</div>`).join('');
+                const others=g.vars.length>1?`<div class="bnc-sub">অন্যান্য রূপ (${bnNum(g.vars.length-1)}টি)</div>`+g.vars.slice(1).map(v=>`<div class="bnc-var">${bnLines(v[0])}<div style="color:var(--md-outline);font-size:0.8rem;">${bnNum(v[1])} বার</div></div>`).join(''):'';
+                return `<div class="bnc-item" id="bnc-${i}">
+                    <button class="bnc-head" aria-expanded="false" onclick="bnToggleCount(this)"><span class="bnc-badge">${bnNum(g.count)}</span><span class="bnc-text">${bnLines(g.best)}</span><span class="material-symbols-outlined bni-chev">expand_more</span></button>
+                    <div class="bnc-detail"><div class="bnc-sub">কোন রচনার কোন পয়েন্টে আছে</div>${occ}${others}</div>
+                </div>`;
+            }).join('');
+            root.innerHTML=`<div class="bni-toolbar"><button class="bni-btn alt" onclick="openBnIndex()"><span class="material-symbols-outlined">arrow_back</span>সূচিতে ফিরুন</button></div>
+                <div class="bni-comp-meta">মোট ${bnNum(list.length)}টি আলাদা কবিতা — বেশি থেকে কম</div>${items||'<p class="bni-empty">কোনো কবিতা পাওয়া যায়নি</p>'}`;
+            showView('bn-index-view'); window.scrollTo(0,0);
+        }
+        function bnToggleCount(btn){
+            const it=btn.closest('.bnc-item'); const open=!it.classList.contains('open');
+            it.classList.toggle('open',open); btn.setAttribute('aria-expanded',open?'true':'false');
+        }
+        function bnTogglePoint(btn) {
+            const pt=btn.closest('.bni-point'); const open=!pt.classList.contains('open');
+            pt.classList.toggle('open',open); btn.setAttribute('aria-expanded',open?'true':'false');
+        }
+
         function processRawPost(file, lang) {
             let title = file.filename.replace('.md','').replace(/-/g,' ');
             let rawContent = file.content, tags = [];
@@ -1554,7 +1713,7 @@
             ob.style.display=dcpUrl?'':'none';
             ob.onclick=()=>{ if(dcpUrl) window.open(dcpUrl,'_blank'); };
             const titleEl=document.getElementById('reader-title'), bodyEl=document.getElementById('reader-body');
-            const apply=()=>{ titleEl.textContent=title; bodyEl.innerHTML=marked.parse(processed); updateReadingGuide(); };
+            const apply=()=>{ titleEl.textContent=title; bodyEl.innerHTML=marked.parse(processed,{breaks:!!(typeof currentPost!=='undefined'&&currentPost&&currentPost.lang==='bn')}); updateReadingGuide(); };
             if(!animate) { apply(); return; }
             titleEl.classList.add('reader-fading-out'); bodyEl.classList.add('reader-fading-out');
             setTimeout(()=>{
